@@ -44,6 +44,8 @@ def parse_whole_act(html: str) -> list[ParsedSection]:
         heading = _clean(re.sub(rf"^{re.escape(section_no)}\s+", "", raw_heading))
         body_node = clause.css_first("blockquote.children")
         body_text = _clean(body_node.text()) if body_node else ""
+        if heading in ("(Repealed)", "") and body_text == "":
+            continue
         sections.append(
             ParsedSection(
                 section_no=section_no,

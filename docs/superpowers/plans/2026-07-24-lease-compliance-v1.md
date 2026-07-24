@@ -954,7 +954,7 @@ Expected: `45 [datetime.date(2010, 6, 17), ...] datetime.date(2026, 6, 10)` (cou
 
 **Interfaces:** Consumes fetcher (T5), parser (T3), loader (T4). Produces the populated local store: all point-in-time versions of `act-2010-042` loaded chronologically.
 
-- [ ] **Step 1: CLI** — `app/ingest/__main__.py`:
+- [x] **Step 1: CLI** — `app/ingest/__main__.py`:
 
 ```python
 """Ingest an act's full point-in-time history: fetch, parse, load.
@@ -1028,11 +1028,11 @@ main()
 
 (Replace the inline `__import__("datetime")` with a top-level `from datetime import date` and `date.fromisoformat` when writing the real file — shown inline here only to keep the listing compact. The real file imports at top per E402 conventions.)
 
-- [ ] **Step 2: Trial run** — `uv run python -m app.ingest nsw --limit-versions 3`. Expected: three version lines, first with a few hundred inserts, later ones with small insert/close counts.
+- [x] **Step 2: Trial run** — `uv run python -m app.ingest nsw --limit-versions 3`. Expected: three version lines, first with a few hundred inserts, later ones with small insert/close counts.
 
-- [ ] **Step 3: Full run** — `uv run python -m app.ingest nsw` (~45 fetches x 2 s delay + parse/load; minutes). Re-run afterwards -> every line `skipped=True` (idempotency proof).
+- [x] **Step 3: Full run** — `uv run python -m app.ingest nsw` (~45 fetches x 2 s delay + parse/load; minutes). Re-run afterwards -> every line `skipped=True` (idempotency proof).
 
-- [ ] **Step 4: Spot-check verification** (documented in the task report with real output):
+- [x] **Step 4: Spot-check verification** (documented in the task report with real output):
 
 ```bash
 uv run python -c "
@@ -1052,9 +1052,9 @@ asyncio.run(main())
 
 Expected: s159 "Payment of bonds" resolves at all three dates (windows may differ). Also count open sections now vs at 2024-10-31 (expect ~335 vs ~301, matching the browser evidence) and list sections whose `valid_to` equals a 2024-10-31 or 2025-05-19 reform date — these are the temporal-test candidates for T9.
 
-- [ ] **Step 5: README licensing note** — append: source is the NSW legislation website (Parliamentary Counsel's Office); stored text carries source URLs and version dates for attribution; check and record the site's current licence statement (NSW legislation is generally published under Creative Commons — cite the exact licence text found).
+- [x] **Step 5: README licensing note** — append: source is the NSW legislation website (Parliamentary Counsel's Office); stored text carries source URLs and version dates for attribution; check and record the site's current licence statement (NSW legislation is generally published under Creative Commons — cite the exact licence text found).
 
-- [ ] **Step 6: Full suite; ruff; commit** (`Add the ingest CLI and load the full NSW history`); push; CI green. Report (include run output summary) and WAIT.
+- [x] **Step 6: Full suite; ruff; commit** (`Add the ingest CLI and load the full NSW history`); push; CI green. Report (include run output summary) and WAIT.
 
 ---
 

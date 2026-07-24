@@ -27,3 +27,8 @@ def test_part_and_division_labels():
     assert sections[0].division is None
     assert sections[1].part == "Part 8 Rental bonds"
     assert sections[1].division == "Division 1 Payment of bonds"
+
+
+def test_repealed_placeholders_excluded():
+    sections = parse_whole_act(HTML)
+    assert "160" not in [s.section_no for s in sections]
