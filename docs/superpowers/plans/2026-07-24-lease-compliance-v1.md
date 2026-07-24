@@ -820,7 +820,7 @@ async def section_at(
 
 **Interfaces:** Produces `parse_version_dates(html: str) -> list[date]` (ascending, unique) and `fetch_versions(slug: str, dates: list[date], cache_dir: Path, delay_seconds: float = 2.0) -> list[Path]` (Playwright; skips dates already cached; returns cached file paths in date order). Constants `LANDING_URL_TEMPLATE`, `WHOLE_ACT_URL_TEMPLATE`.
 
-- [ ] **Step 1: Install Playwright**
+- [x] **Step 1: Install Playwright**
 
 ```bash
 cd /Users/keithho/LLMProjects/lease-compliance-service
@@ -828,7 +828,7 @@ uv add --dev playwright
 uv run playwright install chromium
 ```
 
-- [ ] **Step 2: Fixture** — `tests/fixtures/landing_timeline.html` (shape of the landing page's timeline; exact container class re-verified live in Step 6):
+- [x] **Step 2: Fixture** — `tests/fixtures/landing_timeline.html` (shape of the landing page's timeline; exact container class re-verified live in Step 6):
 
 ```html
 <div class="timeline">
@@ -842,7 +842,7 @@ uv run playwright install chromium
 <p>accessed 24 July 2026 - this date must not be parsed as a version</p>
 ```
 
-- [ ] **Step 3: Failing tests** — `tests/test_fetcher.py`:
+- [x] **Step 3: Failing tests** — `tests/test_fetcher.py`:
 
 ```python
 from datetime import date
@@ -861,9 +861,9 @@ def test_ignores_dates_outside_timeline():
     assert date(2026, 7, 24) not in parse_version_dates(HTML)
 ```
 
-- [ ] **Step 4: Run -> fail.**
+- [x] **Step 4: Run -> fail.**
 
-- [ ] **Step 5: Implement** — `app/ingest/fetcher.py`:
+- [x] **Step 5: Implement** — `app/ingest/fetcher.py`:
 
 ```python
 import re
@@ -928,7 +928,7 @@ def fetch_versions(
     return paths
 ```
 
-- [ ] **Step 6: Live verification (one page, manual)** — run a one-off snippet to confirm the real landing page's timeline container and that a dated whole-act URL renders `div.frag-clause` (pattern verified in planning; this re-checks at execution time):
+- [x] **Step 6: Live verification (one page, manual)** — run a one-off snippet to confirm the real landing page's timeline container and that a dated whole-act URL renders `div.frag-clause` (pattern verified in planning; this re-checks at execution time):
 
 ```bash
 uv run python -c "
@@ -944,7 +944,7 @@ Path('data/raw/landing-check.html').write_text(html)
 
 Expected: `45 [datetime.date(2010, 6, 17), ...] datetime.date(2026, 6, 10)` (count may exceed 45 if new versions have published). If the timeline selector differs, adjust `parse_version_dates` and the fixture to the real container class and re-run the tests.
 
-- [ ] **Step 7: Run tests -> pass; ruff; commit** (`Add version discovery and the Playwright fetcher`); push; CI green. Report and WAIT.
+- [x] **Step 7: Run tests -> pass; ruff; commit** (`Add version discovery and the Playwright fetcher`); push; CI green. Report and WAIT.
 
 ---
 
