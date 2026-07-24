@@ -1,8 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+import asyncpg
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models import Act
 from app.rules.engine import run_audit
@@ -24,9 +26,12 @@ async def corpus_session():
     engine = create_async_engine(settings.database_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
-        act = (
-            await session.execute(select(Act).where(Act.slug == "act-2010-042"))
-        ).scalar_one_or_none()
+        try:
+            act = (
+                await session.execute(select(Act).where(Act.slug == "act-2010-042"))
+            ).scalar_one_or_none()
+        except (OSError, SQLAlchemyError, asyncpg.PostgresError):
+            pytest.skip("NSW corpus store not reachable")
         if act is None:
             pytest.skip("NSW corpus not ingested")
         yield session
