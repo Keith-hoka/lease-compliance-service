@@ -67,7 +67,7 @@ These were confirmed against the live site during planning. Re-verify in T5/T6 b
 
 **Interfaces:** Produces `app.main:app` (FastAPI instance) that every later task mounts onto; CI that runs `pytest` + ruff on push.
 
-- [ ] **Step 1: Init project + deps**
+- [x] **Step 1: Init project + deps**
 
 ```bash
 cd /Users/keithho/LLMProjects/lease-compliance-service
@@ -77,7 +77,7 @@ uv add fastapi "uvicorn[standard]" "sqlalchemy[asyncio]" asyncpg alembic pydanti
 uv add --dev pytest pytest-asyncio httpx ruff
 ```
 
-- [ ] **Step 2: Tool config** — append to `pyproject.toml`:
+- [x] **Step 2: Tool config** — append to `pyproject.toml`:
 
 ```toml
 [tool.ruff]
@@ -106,7 +106,7 @@ Deterministic NSW residential lease compliance audits with a temporal
 legislation store. Output is general information, not legal advice.
 ```
 
-- [ ] **Step 3: Failing test** — `tests/test_health.py`:
+- [x] **Step 3: Failing test** — `tests/test_health.py`:
 
 ```python
 from httpx import ASGITransport, AsyncClient
@@ -121,9 +121,9 @@ async def test_health():
     assert response.json() == {"status": "ok"}
 ```
 
-- [ ] **Step 4: Run -> fail** — `uv run pytest -q` -> ImportError (no `app.main`).
+- [x] **Step 4: Run -> fail** — `uv run pytest -q` -> ImportError (no `app.main`).
 
-- [ ] **Step 5: Implement** — `app/__init__.py` empty; `app/main.py`:
+- [x] **Step 5: Implement** — `app/__init__.py` empty; `app/main.py`:
 
 ```python
 from fastapi import FastAPI
@@ -136,9 +136,9 @@ def health() -> dict:
     return {"status": "ok"}
 ```
 
-- [ ] **Step 6: Run -> pass.**
+- [x] **Step 6: Run -> pass.**
 
-- [ ] **Step 7: CI** — `.github/workflows/ci.yml`:
+- [x] **Step 7: CI** — `.github/workflows/ci.yml`:
 
 ```yaml
 name: CI
@@ -178,7 +178,7 @@ jobs:
       - run: uv run ruff format --check .
 ```
 
-- [ ] **Step 8: Ruff sequence, commit, create repo, push**
+- [x] **Step 8: Ruff sequence, commit, create repo, push**
 
 ```bash
 cd /Users/keithho/LLMProjects/lease-compliance-service
@@ -187,7 +187,7 @@ git add -A && git commit -m "Scaffold the service with a health endpoint and CI"
 gh repo create Keith-hoka/lease-compliance-service --public --source . --push
 ```
 
-- [ ] **Step 9: CI green** (`gh run watch <id> --exit-status`). Report and WAIT.
+- [x] **Step 9: CI green** (`gh run watch <id> --exit-status`). Report and WAIT.
 
 ---
 
