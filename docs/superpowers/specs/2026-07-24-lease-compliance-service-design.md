@@ -127,12 +127,12 @@ registry, with declarative metadata —
 ```python
 @dataclass(frozen=True)
 class Rule:
-    rule_id: str            # "nsw.bond_max_4_weeks"
-    jurisdiction: str       # "NSW"
-    citations: list[SectionRef]   # act slug + section_no
-    applies_from: date | None     # rule active window (law-driven)
+    rule_id: str  # "nsw.bond_max_4_weeks"
+    jurisdiction: str  # "NSW"
+    citations: list[SectionRef]  # act slug + section_no
+    applies_from: date | None  # rule active window (law-driven)
     applies_to: date | None
-    required_inputs: list[str]    # lease fields the check needs
+    required_inputs: list[str]  # lease fields the check needs
     check: Callable[[LeaseInput, RuleContext], Verdict]
 ```
 

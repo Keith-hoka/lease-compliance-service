@@ -664,9 +664,13 @@ V3 = date(2025, 5, 19)
 
 async def test_scd2_windows(db_session):
     act = await _act(db_session)
-    s1 = await load_version(db_session, act.id, V1, [_ps("1", "Name", "Old body"), _ps("2", "Two", "B")])
+    s1 = await load_version(
+        db_session, act.id, V1, [_ps("1", "Name", "Old body"), _ps("2", "Two", "B")]
+    )
     assert s1 == LoadStats(inserted=2, closed=0, skipped=False)
-    s2 = await load_version(db_session, act.id, V2, [_ps("1", "Name", "New body"), _ps("2", "Two", "B")])
+    s2 = await load_version(
+        db_session, act.id, V2, [_ps("1", "Name", "New body"), _ps("2", "Two", "B")]
+    )
     assert s2 == LoadStats(inserted=1, closed=1, skipped=False)
     await db_session.commit()
 
@@ -879,8 +883,7 @@ def parse_version_dates(html: str) -> list[date]:
     timeline = tree.css_first(".timeline")
     text = timeline.text() if timeline else ""
     dates = {
-        datetime.strptime(m, "%d/%m/%Y").date()
-        for m in re.findall(r"\b\d{2}/\d{2}/\d{4}\b", text)
+        datetime.strptime(m, "%d/%m/%Y").date() for m in re.findall(r"\b\d{2}/\d{2}/\d{4}\b", text)
     }
     return sorted(dates)
 
@@ -966,7 +969,12 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.core.db import async_session_factory
-from app.ingest.fetcher import LANDING_URL_TEMPLATE, fetch_landing, fetch_versions, parse_version_dates
+from app.ingest.fetcher import (
+    LANDING_URL_TEMPLATE,
+    fetch_landing,
+    fetch_versions,
+    parse_version_dates,
+)
 from app.ingest.loader import load_version
 from app.ingest.parser import parse_whole_act
 from app.models import Act
@@ -1103,7 +1111,9 @@ async def corpus_session():
     from app.core.db import async_session_factory
 
     async with async_session_factory() as session:
-        act = (await session.execute(select(Act).where(Act.slug == "act-2010-042"))).scalar_one_or_none()
+        act = (
+            await session.execute(select(Act).where(Act.slug == "act-2010-042"))
+        ).scalar_one_or_none()
         if act is None:
             pytest.skip("NSW corpus not ingested")
         yield session
@@ -1150,7 +1160,9 @@ from app.schemas.lease import LeaseInput
 
 
 def lease() -> LeaseInput:
-    return LeaseInput(rent_amount=Decimal("500"), rent_frequency="weekly", start_date=date(2026, 1, 1))
+    return LeaseInput(
+        rent_amount=Decimal("500"), rent_frequency="weekly", start_date=date(2026, 1, 1)
+    )
 
 
 async def test_rule_with_section_not_in_force_is_skipped(db_session, monkeypatch):
@@ -1317,8 +1329,16 @@ def _bond_check(lease: LeaseInput) -> CheckResult:
         "computed": {"weekly_rent": str(weekly), "max_bond": str(max_bond)},
     }
     if lease.bond_amount > max_bond:
-        return "red", f"Bond of {lease.bond_amount} exceeds the 4-week maximum of {max_bond}.", evidence
-    return "green", f"Bond of {lease.bond_amount} is within the 4-week maximum of {max_bond}.", evidence
+        return (
+            "red",
+            f"Bond of {lease.bond_amount} exceeds the 4-week maximum of {max_bond}.",
+            evidence,
+        )
+    return (
+        "green",
+        f"Bond of {lease.bond_amount} is within the 4-week maximum of {max_bond}.",
+        evidence,
+    )
 
 
 def _advance_check(lease: LeaseInput) -> CheckResult:
@@ -1330,8 +1350,16 @@ def _advance_check(lease: LeaseInput) -> CheckResult:
         "computed": {"weekly_rent": str(weekly), "max_advance": str(cap)},
     }
     if lease.rent_in_advance_amount > cap:
-        return "red", f"Rent in advance of {lease.rent_in_advance_amount} exceeds the cap of {cap}.", evidence
-    return "green", f"Rent in advance of {lease.rent_in_advance_amount} is within the cap of {cap}.", evidence
+        return (
+            "red",
+            f"Rent in advance of {lease.rent_in_advance_amount} exceeds the cap of {cap}.",
+            evidence,
+        )
+    return (
+        "green",
+        f"Rent in advance of {lease.rent_in_advance_amount} is within the cap of {cap}.",
+        evidence,
+    )
 
 
 NSW_RULES = [
@@ -1411,7 +1439,9 @@ async def run_audit(
                 break
             act = await session.get(Act, section.act_id)
             citations.append(
-                Citation(act=act.title, section_no=ref.section_no, as_at=as_at, section_id=section.id)
+                Citation(
+                    act=act.title, section_no=ref.section_no, as_at=as_at, section_id=section.id
+                )
             )
         if missing_section is not None:
             findings.append(
@@ -1490,27 +1520,37 @@ Record each rule's operative wording, exact thresholds (frequency window, notice
 ```python
 async def test_two_increases_eight_months_apart_is_red(corpus_session):
     findings = await run_audit(
-        corpus_session, "NSW", AS_AT,
-        lease(rent_increases=[
-            {"effective_on": "2027-02-01", "new_amount": "620"},
-            {"effective_on": "2027-10-01", "new_amount": "640"},
-        ]),
+        corpus_session,
+        "NSW",
+        AS_AT,
+        lease(
+            rent_increases=[
+                {"effective_on": "2027-02-01", "new_amount": "620"},
+                {"effective_on": "2027-10-01", "new_amount": "640"},
+            ]
+        ),
     )
     assert next(f for f in findings if f.rule_id == "nsw.rent_increase_frequency").verdict == "red"
 
 
 async def test_increase_with_59_days_notice_is_red(corpus_session):
     findings = await run_audit(
-        corpus_session, "NSW", AS_AT,
-        lease(rent_increases=[
-            {"effective_on": "2027-06-01", "new_amount": "620", "notice_given_on": "2027-04-04"}
-        ]),
+        corpus_session,
+        "NSW",
+        AS_AT,
+        lease(
+            rent_increases=[
+                {"effective_on": "2027-06-01", "new_amount": "620", "notice_given_on": "2027-04-04"}
+            ]
+        ),
     )
     assert next(f for f in findings if f.rule_id == "nsw.rent_increase_notice").verdict == "red"
 
 
 async def test_other_security_present_is_red(corpus_session):
-    findings = await run_audit(corpus_session, "NSW", AS_AT, lease(other_security_amount=Decimal("500")))
+    findings = await run_audit(
+        corpus_session, "NSW", AS_AT, lease(other_security_amount=Decimal("500"))
+    )
     assert next(f for f in findings if f.rule_id == "nsw.no_other_security").verdict == "red"
 ```
 
@@ -1560,14 +1600,18 @@ async def test_same_lease_differs_across_reform(corpus_session):
     from app.rules.nsw import FREQ_COMMENCED
 
     lease_kwargs = dict(
-        rent_amount="600", rent_frequency="weekly", start_date="2000-01-01",
+        rent_amount="600",
+        rent_frequency="weekly",
+        start_date="2000-01-01",
         rent_increases=[
             {"effective_on": "2001-01-01", "new_amount": "620"},
             {"effective_on": "2001-06-01", "new_amount": "640"},
         ],
     )
     before = await run_audit(
-        corpus_session, "NSW", FREQ_COMMENCED.replace(year=FREQ_COMMENCED.year - 1),
+        corpus_session,
+        "NSW",
+        FREQ_COMMENCED.replace(year=FREQ_COMMENCED.year - 1),
         LeaseInput(**lease_kwargs),
     )
     after = await run_audit(corpus_session, "NSW", AS_AT, LeaseInput(**lease_kwargs))
@@ -1611,21 +1655,34 @@ def api_key(monkeypatch):
 
 @pytest.fixture
 async def seeded(db_session):
-    act = Act(jurisdiction="NSW", slug="act-2010-042", title="Residential Tenancies Act 2010", source_url="x")
+    act = Act(
+        jurisdiction="NSW",
+        slug="act-2010-042",
+        title="Residential Tenancies Act 2010",
+        source_url="x",
+    )
     db_session.add(act)
     await db_session.flush()
     await load_version(
-        db_session, act.id, date(2011, 1, 31),
-        [ParsedSection("159", "Payment of bonds", "4 weeks limit body", "Part 8", None),
-         ParsedSection("33", "Payment of rent by tenant", "advance body", "Part 3", None)],
+        db_session,
+        act.id,
+        date(2011, 1, 31),
+        [
+            ParsedSection("159", "Payment of bonds", "4 weeks limit body", "Part 8", None),
+            ParsedSection("33", "Payment of rent by tenant", "advance body", "Part 3", None),
+        ],
     )
     await db_session.commit()
 
 
 AUDIT_BODY = {
     "jurisdiction": "NSW",
-    "lease": {"rent_amount": "600", "rent_frequency": "weekly", "start_date": "2026-01-01",
-              "bond_amount": "3000"},
+    "lease": {
+        "rent_amount": "600",
+        "rent_frequency": "weekly",
+        "start_date": "2026-01-01",
+        "bond_amount": "3000",
+    },
 }
 
 
@@ -1747,21 +1804,27 @@ async def create_audit(
     await session.commit()
     await session.refresh(audit)
     return AuditInfo(
-        id=audit.id, jurisdiction=audit.jurisdiction, as_at=audit.as_at,
-        engine_version=audit.engine_version, findings=findings, created_at=audit.created_at,
+        id=audit.id,
+        jurisdiction=audit.jurisdiction,
+        as_at=audit.as_at,
+        engine_version=audit.engine_version,
+        findings=findings,
+        created_at=audit.created_at,
     )
 
 
 @router.get("/audits/{audit_id}", response_model=AuditInfo)
-async def get_audit(
-    audit_id: uuid.UUID, session: AsyncSession = Depends(get_session)
-) -> AuditInfo:
+async def get_audit(audit_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> AuditInfo:
     audit = await session.get(Audit, audit_id)
     if audit is None:
         raise HTTPException(status_code=404, detail="Audit not found")
     return AuditInfo(
-        id=audit.id, jurisdiction=audit.jurisdiction, as_at=audit.as_at,
-        engine_version=audit.engine_version, findings=audit.findings, created_at=audit.created_at,
+        id=audit.id,
+        jurisdiction=audit.jurisdiction,
+        as_at=audit.as_at,
+        engine_version=audit.engine_version,
+        findings=audit.findings,
+        created_at=audit.created_at,
     )
 ```
 
@@ -1799,9 +1862,13 @@ async def get_section(
     if section is None:
         raise HTTPException(status_code=404, detail="Section not in force at that date")
     return SectionInfo(
-        section_no=section.section_no, heading=section.heading, body_text=section.body_text,
-        part=section.part, division=section.division,
-        valid_from=section.valid_from, valid_to=section.valid_to,
+        section_no=section.section_no,
+        heading=section.heading,
+        body_text=section.body_text,
+        part=section.part,
+        division=section.division,
+        valid_from=section.valid_from,
+        valid_to=section.valid_to,
     )
 ```
 
