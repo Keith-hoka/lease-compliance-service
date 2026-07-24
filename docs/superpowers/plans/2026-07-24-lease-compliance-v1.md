@@ -492,7 +492,7 @@ async def client(db_engine):
 
 **Interfaces:** Produces `ParsedSection(section_no, heading, body_text, part, division)` (frozen dataclass, all `str`, `part`/`division` `str | None`) and `parse_whole_act(html: str) -> list[ParsedSection]`. The loader (T4) consumes this list.
 
-- [ ] **Step 1: Fixture** — `tests/fixtures/mini_act.html` (mirrors the verified live markup: `frag-clause` ids, `heading` + `blockquote.children`, history notes, part/division ancestors, a lettered section):
+- [x] **Step 1: Fixture** — `tests/fixtures/mini_act.html` (mirrors the verified live markup: `frag-clause` ids, `heading` + `blockquote.children`, history notes, part/division ancestors, a lettered section):
 
 ```html
 <div class="content">
@@ -523,7 +523,7 @@ async def client(db_engine):
 </div>
 ```
 
-- [ ] **Step 2: Failing tests** — `tests/test_parser.py`:
+- [x] **Step 2: Failing tests** — `tests/test_parser.py`:
 
 ```python
 from pathlib import Path
@@ -557,9 +557,9 @@ def test_part_and_division_labels():
     assert sections[1].division == "Division 1 Payment of bonds"
 ```
 
-- [ ] **Step 3: Run -> fail** (ImportError).
+- [x] **Step 3: Run -> fail** (ImportError).
 
-- [ ] **Step 4: Implement** — `app/ingest/parser.py`:
+- [x] **Step 4: Implement** — `app/ingest/parser.py`:
 
 ```python
 import re
@@ -622,7 +622,7 @@ def parse_whole_act(html: str) -> list[ParsedSection]:
 
 Note: if selectolax's `:scope >` selector is unsupported in the installed version, drop to iterating `current.iter()` children for a `heading` class — keep the first matching child element.
 
-- [ ] **Step 5: Run -> pass; full suite; ruff; commit** (`Add the whole-act HTML parser`); push; CI green. Report and WAIT.
+- [x] **Step 5: Run -> pass; full suite; ruff; commit** (`Add the whole-act HTML parser`); push; CI green. Report and WAIT.
 
 ---
 
