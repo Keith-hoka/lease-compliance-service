@@ -1069,7 +1069,7 @@ Expected: s159 "Payment of bonds" resolves at all three dates (windows may diffe
 - `app/rules/__init__.py`: `ALL_RULES: list[Rule]`, `ENGINE_VERSION = "1.0.0"`.
 - First two rules in `app/rules/nsw.py`: `nsw.bond_max_4_weeks` (s159) and `nsw.rent_in_advance_max` (s33).
 
-- [ ] **Step 1: Pin statutory text** — before writing the rules, read the two sections from the ingested corpus and paste the operative sentences into each rule's docstring:
+- [x] **Step 1: Pin statutory text** — before writing the rules, read the two sections from the ingested corpus and paste the operative sentences into each rule's docstring:
 
 ```bash
 uv run python -c "
@@ -1089,7 +1089,7 @@ asyncio.run(main())
 
 Confirm s159 contains the 4-weeks bond cap and locate the exact advance-rent limit wording in s33 (expected: rent in advance capped at 2 weeks for weekly-rent agreements; if the cap turns out to live in a different section, update the `SectionRef` accordingly and note it in the report).
 
-- [ ] **Step 2: Failing tests** — `tests/test_rules_nsw.py` (rule-level, via the engine against the ingested store — these run against the real corpus loaded in T6; guard with a fixture that skips if the store is empty so CI without the corpus still passes):
+- [x] **Step 2: Failing tests** — `tests/test_rules_nsw.py` (rule-level, via the engine against the ingested store — these run against the real corpus loaded in T6; guard with a fixture that skips if the store is empty so CI without the corpus still passes):
 
 ```python
 from datetime import date
@@ -1210,9 +1210,9 @@ async def test_rule_outside_applies_window_is_skipped(db_session, monkeypatch):
     assert "not active" in findings[0].skip_reason
 ```
 
-- [ ] **Step 3: Run -> fail.**
+- [x] **Step 3: Run -> fail.**
 
-- [ ] **Step 4: Implement** — `app/schemas/lease.py`:
+- [x] **Step 4: Implement** — `app/schemas/lease.py`:
 
 ```python
 from datetime import date
@@ -1480,8 +1480,8 @@ async def run_audit(
     return findings
 ```
 
-- [ ] **Step 5: Run -> pass** (corpus tests pass locally against the loaded store; they skip on CI where no corpus exists — engine tests cover CI).
-- [ ] **Step 6: Full suite; ruff; commit** (`Add the lease schema, rule engine and first NSW rules`); push; CI green. Report and WAIT.
+- [x] **Step 5: Run -> pass** (corpus tests pass locally against the loaded store; they skip on CI where no corpus exists — engine tests cover CI).
+- [x] **Step 6: Full suite; ruff; commit** (`Add the lease schema, rule engine and first NSW rules`); push; CI green. Report and WAIT.
 
 ---
 
