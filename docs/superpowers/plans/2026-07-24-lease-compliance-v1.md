@@ -197,14 +197,14 @@ gh repo create Keith-hoka/lease-compliance-service --public --source . --push
 
 **Interfaces:** Produces `Base`, `get_session`, `settings`; models `Act(id, jurisdiction, slug, title, source_url)`, `Section(id, act_id, section_no, heading, body_text, part, division, valid_from, valid_to, source_version_date, content_hash)`, `IngestedVersion(act_id, version_date)`, `Audit(id, jurisdiction, as_at, input, findings, engine_version, created_at)`; test fixtures `db_session`, `client`.
 
-- [ ] **Step 1: Local databases** (match CI creds; adjust user/password to the local Postgres on 5433 if different and note it in the report):
+- [x] **Step 1: Local databases** (match CI creds; adjust user/password to the local Postgres on 5433 if different and note it in the report):
 
 ```bash
 psql -h localhost -p 5433 -U postgres -c "CREATE DATABASE lease_compliance;"
 psql -h localhost -p 5433 -U postgres -c "CREATE DATABASE lease_compliance_test;"
 ```
 
-- [ ] **Step 2: Failing test** — `tests/test_models.py`:
+- [x] **Step 2: Failing test** — `tests/test_models.py`:
 
 ```python
 import uuid
@@ -263,9 +263,9 @@ async def test_audit_round_trip(db_session):
     assert isinstance(stored.id, uuid.UUID)
 ```
 
-- [ ] **Step 3: Run -> fail** (ImportError).
+- [x] **Step 3: Run -> fail** (ImportError).
 
-- [ ] **Step 4: Implement config/db** — `app/core/config.py`:
+- [x] **Step 4: Implement config/db** — `app/core/config.py`:
 
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -307,7 +307,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 ```
 
-- [ ] **Step 5: Models** — `app/models/legislation.py`:
+- [x] **Step 5: Models** — `app/models/legislation.py`:
 
 ```python
 import uuid
@@ -385,7 +385,7 @@ from app.models.legislation import Act, IngestedVersion, Section
 __all__ = ["Act", "Audit", "IngestedVersion", "Section"]
 ```
 
-- [ ] **Step 6: Alembic** — `uv run alembic init alembic`; make `alembic/env.py` async and import `Base`:
+- [x] **Step 6: Alembic** — `uv run alembic init alembic`; make `alembic/env.py` async and import `Base`:
 
 ```python
 import asyncio
@@ -432,7 +432,7 @@ else:
 
 Then `uv run alembic revision -m "baseline"` and hand-write `upgrade` (create `acts`, `sections`, `ingested_versions`, `audits` with the exact columns above, plus indexes `ix_acts_jurisdiction`, `ix_sections_act_id`, and a composite `ix_sections_act_no_from` on `(act_id, section_no, valid_from)`) and `downgrade` (drop the four tables in reverse order). No PG enums in this schema. Verify `uv run alembic upgrade head && uv run alembic downgrade -1 && uv run alembic upgrade head`.
 
-- [ ] **Step 7: conftest** — `tests/conftest.py`:
+- [x] **Step 7: conftest** — `tests/conftest.py`:
 
 ```python
 import os
@@ -482,7 +482,7 @@ async def client(db_engine):
     app.dependency_overrides.clear()
 ```
 
-- [ ] **Step 8: Run -> pass; full suite; ruff; commit** (`Add settings, models and the baseline migration`); push; CI green. Report and WAIT.
+- [x] **Step 8: Run -> pass; full suite; ruff; commit** (`Add settings, models and the baseline migration`); push; CI green. Report and WAIT.
 
 ---
 
