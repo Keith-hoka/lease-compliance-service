@@ -635,7 +635,7 @@ Note: if selectolax's `:scope >` selector is unsupported in the installed versio
 - `async load_version(session, act_id, version_date: date, sections: list[ParsedSection]) -> LoadStats` where `LoadStats(inserted: int, closed: int, skipped: bool)`.
 - `async section_at(session, act_slug: str, section_no: str, as_at: date) -> Section | None`.
 
-- [ ] **Step 1: Failing tests** — `tests/test_loader.py`:
+- [x] **Step 1: Failing tests** — `tests/test_loader.py`:
 
 ```python
 from datetime import date
@@ -705,9 +705,9 @@ async def test_before_first_version_is_none(db_session):
     assert (await section_at(db_session, "act-test", "1", date(2009, 1, 1))) is None
 ```
 
-- [ ] **Step 2: Run -> fail.**
+- [x] **Step 2: Run -> fail.**
 
-- [ ] **Step 3: Implement** — `app/ingest/loader.py`:
+- [x] **Step 3: Implement** — `app/ingest/loader.py`:
 
 ```python
 import hashlib
@@ -810,7 +810,7 @@ async def section_at(
     return (await session.execute(query)).scalar_one_or_none()
 ```
 
-- [ ] **Step 4: Run -> pass; full suite; ruff; commit** (`Add the SCD-2 loader and point-in-time query`); push; CI green. Report and WAIT.
+- [x] **Step 4: Run -> pass; full suite; ruff; commit** (`Add the SCD-2 loader and point-in-time query`); push; CI green. Report and WAIT.
 
 ---
 
