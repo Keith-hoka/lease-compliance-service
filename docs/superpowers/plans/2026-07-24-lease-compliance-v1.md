@@ -1633,7 +1633,7 @@ async def test_same_lease_differs_across_reform(corpus_session):
 
 **Interfaces:** Consumes `run_audit`, `section_at`, `Audit` model, `ENGINE_VERSION`. Produces the public API per the spec.
 
-- [ ] **Step 1: Failing tests** — `tests/test_api.py` (API tests run on the synthetic store via the `client` fixture; seed a minimal act+section so the bond rule resolves):
+- [x] **Step 1: Failing tests** — `tests/test_api.py` (API tests run on the synthetic store via the `client` fixture; seed a minimal act+section so the bond rule resolves):
 
 ```python
 from datetime import date
@@ -1724,9 +1724,9 @@ async def test_section_lookup(client, seeded):
     assert missing.status_code == 404
 ```
 
-- [ ] **Step 2: Run -> fail** (404 route).
+- [x] **Step 2: Run -> fail** (404 route).
 
-- [ ] **Step 3: Implement** — `app/core/auth.py`:
+- [x] **Step 3: Implement** — `app/core/auth.py`:
 
 ```python
 from fastapi import Header, HTTPException
@@ -1893,6 +1893,6 @@ def health() -> dict:
     return {"status": "ok"}
 ```
 
-- [ ] **Step 4: Run -> pass.**
-- [ ] **Step 5: README usage** — add curl examples for `POST /v1/audits` and the sections lookup (with `X-API-Key`), the `API_KEYS` env var, the ingest command, and the not-legal-advice disclaimer.
-- [ ] **Step 6: Full suite; ruff; commit** (`Add the audits API and legislation lookup`); push; CI green. Report and WAIT — V1 complete.
+- [x] **Step 4: Run -> pass.**
+- [x] **Step 5: README usage** — add curl examples for `POST /v1/audits` and the sections lookup (with `X-API-Key`), the `API_KEYS` env var, the ingest command, and the not-legal-advice disclaimer.
+- [x] **Step 6: Full suite; ruff; commit** (`Add the audits API and legislation lookup`); push; CI green. Report and WAIT — V1 complete.

@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="Lease Compliance Service")
+from app.routers.audits import router as audits_router
+from app.routers.legislation import router as legislation_router
+
+app = FastAPI(
+    title="Lease Compliance Service",
+    description="General information, not legal advice.",
+)
+app.include_router(audits_router)
+app.include_router(legislation_router)
 
 
 @app.get("/health")
