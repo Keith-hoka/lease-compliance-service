@@ -66,3 +66,209 @@ async def test_missing_bond_is_skipped(corpus_session):
     finding = next(f for f in findings if f.rule_id == "nsw.bond_max_4_weeks")
     assert finding.verdict == "skipped"
     assert "bond_amount" in finding.skip_reason
+
+
+async def _verdict(corpus_session, rule_id, as_at=AS_AT, **lease_kw):
+    findings = await run_audit(corpus_session, "NSW", as_at, lease(**lease_kw))
+    return next(f for f in findings if f.rule_id == rule_id)
+
+
+async def test_holding_fee_over_one_week_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session, "nsw.holding_fee_max_1_week", holding_deposit_amount=Decimal(700)
+    )
+    assert finding.verdict == "red"
+    assert finding.citations[0].section_no == "24"
+
+
+async def test_holding_fee_at_cap_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session, "nsw.holding_fee_max_1_week", holding_deposit_amount=Decimal(600)
+    )
+    assert finding.verdict == "green"
+
+
+async def test_missing_holding_fee_is_skipped(corpus_session):
+    finding = await _verdict(corpus_session, "nsw.holding_fee_max_1_week")
+    assert finding.verdict == "skipped"
+
+
+async def test_two_increases_eight_months_apart_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_frequency",
+        rent_increases=[
+            {"effective_on": "2027-02-01", "new_amount": "620"},
+            {"effective_on": "2027-10-01", "new_amount": "640"},
+        ],
+    )
+    assert finding.verdict == "red"
+    assert finding.citations[0].section_no == "41"
+
+
+async def test_increases_thirteen_months_apart_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_frequency",
+        rent_increases=[
+            {"effective_on": "2027-02-01", "new_amount": "620"},
+            {"effective_on": "2028-03-01", "new_amount": "640"},
+        ],
+    )
+    assert finding.verdict == "green"
+
+
+async def test_no_increases_frequency_skipped(corpus_session):
+    finding = await _verdict(corpus_session, "nsw.rent_increase_frequency")
+    assert finding.verdict == "skipped"
+
+
+async def test_first_increase_within_first_year_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_first_year",
+        rent_increases=[{"effective_on": "2026-07-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "red"
+
+
+async def test_first_increase_after_first_year_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_first_year",
+        rent_increases=[{"effective_on": "2027-02-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "green"
+
+
+async def test_increase_with_59_days_notice_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_notice",
+        rent_increases=[
+            {"effective_on": "2027-06-01", "new_amount": "620", "notice_given_on": "2027-04-04"}
+        ],
+    )
+    assert finding.verdict == "red"
+
+
+async def test_increase_with_60_days_notice_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_notice",
+        rent_increases=[
+            {"effective_on": "2027-06-01", "new_amount": "620", "notice_given_on": "2027-04-02"}
+        ],
+    )
+    assert finding.verdict == "green"
+
+
+async def test_increase_without_notice_date_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_notice",
+        rent_increases=[{"effective_on": "2027-06-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "green"
+
+
+async def test_fixed_term_increase_without_disclosure_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        as_at=date(2024, 6, 1),
+        start_date=date(2024, 1, 1),
+        end_date=date(2025, 1, 1),
+        rent_increases=[{"effective_on": "2024-09-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "red"
+    assert finding.citations[0].section_no == "42"
+
+
+async def test_fixed_term_increase_with_disclosure_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        as_at=date(2024, 6, 1),
+        start_date=date(2024, 1, 1),
+        end_date=date(2025, 1, 1),
+        rent_increases=[{"effective_on": "2024-09-01", "new_amount": "620"}],
+        fixed_term_increase_in_agreement=True,
+    )
+    assert finding.verdict == "green"
+
+
+async def test_two_year_fixed_term_needs_no_disclosure(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        as_at=date(2024, 6, 1),
+        start_date=date(2024, 1, 1),
+        end_date=date(2026, 1, 1),
+        rent_increases=[{"effective_on": "2024-09-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "green"
+
+
+async def test_disclosure_rule_inactive_after_repeal(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        start_date=date(2026, 1, 1),
+        end_date=date(2027, 1, 1),
+        rent_increases=[{"effective_on": "2026-09-01", "new_amount": "620"}],
+    )
+    assert finding.verdict == "skipped"
+    assert "not active" in finding.skip_reason
+
+
+async def test_other_security_present_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session, "nsw.no_other_security", other_security_amount=Decimal(500)
+    )
+    assert finding.verdict == "red"
+    assert finding.citations[0].section_no == "160"
+
+
+async def test_zero_other_security_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session, "nsw.no_other_security", other_security_amount=Decimal(0)
+    )
+    assert finding.verdict == "green"
+
+
+async def test_break_fee_over_four_weeks_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.break_fee_cap",
+        end_date=date(2027, 1, 1),
+        break_fee_amount=Decimal(2500),
+    )
+    assert finding.verdict == "red"
+    assert finding.citations[0].section_no == "107"
+
+
+async def test_break_fee_at_four_weeks_is_green(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.break_fee_cap",
+        end_date=date(2027, 1, 1),
+        break_fee_amount=Decimal(2400),
+    )
+    assert finding.verdict == "green"
+
+
+async def test_break_fee_scale_not_applied_over_three_years(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.break_fee_cap",
+        end_date=date(2030, 1, 1),
+        break_fee_amount=Decimal(5000),
+    )
+    assert finding.verdict == "green"
+
+
+async def test_break_fee_without_end_date_is_skipped(corpus_session):
+    finding = await _verdict(corpus_session, "nsw.break_fee_cap", break_fee_amount=Decimal(2500))
+    assert finding.verdict == "skipped"
+    assert "end_date" in finding.skip_reason

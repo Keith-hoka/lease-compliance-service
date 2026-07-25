@@ -1491,7 +1491,7 @@ async def run_audit(
 
 **Interfaces:** Consumes the T7 rule machinery unchanged. Produces rules: `nsw.pre_agreement_amounts` (s23, `holding_deposit_amount`), `nsw.rent_increase_frequency` (s41, gaps between `rent_increases` >= 12 months; also >= 12 months after `start_date` for the first increase), `nsw.rent_increase_notice` (s41, each increase with `notice_given_on` must give >= 60 days), `nsw.fixed_term_increase_disclosure` (s42, increase during a fixed term requires `fixed_term_increase_in_agreement is True`), `nsw.no_other_security` (s160, red if `other_security_amount` > 0), and `nsw.break_fee_cap` if — and only if — Step 1 locates its basis in the Act (defer to the Regulation milestone otherwise).
 
-- [ ] **Step 1: Pin statutory text** — same query pattern as T7 Step 1 for sections 23, 41, 42, 160, and search the corpus for the break-fee basis:
+- [x] **Step 1: Pin statutory text** — same query pattern as T7 Step 1 for sections 23, 41, 42, 160, and search the corpus for the break-fee basis:
 
 ```bash
 uv run python -c "
@@ -1515,7 +1515,7 @@ asyncio.run(main())
 
 Record each rule's operative wording, exact thresholds (frequency window, notice days, s23 cap expressed in weeks of rent, commencement dates for `applies_from` — s41's 12-month frequency limit commenced with a specific amendment; find it by querying that section's historical windows) in the rule docstrings. Correct any threshold the corpus contradicts and say so in the report.
 
-- [ ] **Step 2: Failing tests** — extend `tests/test_rules_nsw.py`; every rule gets red/green/skipped cases in the T7 style. Representative cases (write all of them):
+- [x] **Step 2: Failing tests** — extend `tests/test_rules_nsw.py`; every rule gets red/green/skipped cases in the T7 style. Representative cases (write all of them):
 
 ```python
 async def test_two_increases_eight_months_apart_is_red(corpus_session):
@@ -1556,9 +1556,9 @@ async def test_other_security_present_is_red(corpus_session):
 
 (`lease()` accepts the dict forms because pydantic coerces nested models.)
 
-- [ ] **Step 3: Run -> fail.**
-- [ ] **Step 4: Implement the rules** in `app/rules/nsw.py`, one check function per rule in the `_bond_check` style: compute, build `evidence` with `fields` + `computed`, return red/green with a one-sentence summary. Define `FREQ_COMMENCED: date` at module level (the pinned commencement of the s41 12-month frequency limit, from Step 1) and use it as that rule's `applies_from` — T9's temporal test imports it. Frequency check sorts increases by `effective_on` and flags any adjacent gap < 365 days (also `start_date` -> first increase); notice check flags `(effective_on - notice_given_on).days < 60` for increases that carry `notice_given_on`; disclosure check is red when the lease has an `end_date`, an increase effective before it, and `fixed_term_increase_in_agreement` is not True; s23 check compares `holding_deposit_amount` against the pinned cap; s160 is red when `other_security_amount > 0`. Register all in `NSW_RULES`.
-- [ ] **Step 5: Run -> pass; full suite; ruff; commit** (`Add the remaining NSW rules`); push; CI green. Report the final rule count vs the spec's 8-10 target (with the break-fee disposition) and WAIT.
+- [x] **Step 3: Run -> fail.**
+- [x] **Step 4: Implement the rules** in `app/rules/nsw.py`, one check function per rule in the `_bond_check` style: compute, build `evidence` with `fields` + `computed`, return red/green with a one-sentence summary. Define `FREQ_COMMENCED: date` at module level (the pinned commencement of the s41 12-month frequency limit, from Step 1) and use it as that rule's `applies_from` — T9's temporal test imports it. Frequency check sorts increases by `effective_on` and flags any adjacent gap < 365 days (also `start_date` -> first increase); notice check flags `(effective_on - notice_given_on).days < 60` for increases that carry `notice_given_on`; disclosure check is red when the lease has an `end_date`, an increase effective before it, and `fixed_term_increase_in_agreement` is not True; s23 check compares `holding_deposit_amount` against the pinned cap; s160 is red when `other_security_amount > 0`. Register all in `NSW_RULES`.
+- [x] **Step 5: Run -> pass; full suite; ruff; commit** (`Add the remaining NSW rules`); push; CI green. Report the final rule count vs the spec's 8-10 target (with the break-fee disposition) and WAIT.
 
 ---
 
