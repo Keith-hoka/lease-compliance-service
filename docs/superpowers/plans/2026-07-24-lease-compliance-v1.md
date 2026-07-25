@@ -1568,9 +1568,9 @@ async def test_other_security_present_is_red(corpus_session):
 
 **Interfaces:** Consumes `run_audit`. Produces the golden harness later LLM milestones extend.
 
-- [ ] **Step 1: Golden leases** — `tests/golden/leases.py`: a `GOLDEN: list[tuple[str, dict, dict[str, str]]]` of (case_id, lease_kwargs, expected `{rule_id: verdict}` for every non-skipped rule). ~20 cases built by seeding violations programmatically: a compliant baseline, then one case per rule flipping exactly that rule to red (bond 5 weeks, advance 3 weeks, holding deposit over cap, increases 8 months apart, 45-day notice, fixed-term increase without disclosure, other security 500), plus combined-violation cases and boundary cases (bond exactly at cap, notice exactly 60 days, increase exactly 12 months).
+- [x] **Step 1: Golden leases** — `tests/golden/leases.py`: a `GOLDEN: list[tuple[str, dict, dict[str, str]]]` of (case_id, lease_kwargs, expected `{rule_id: verdict}` for every non-skipped rule). ~20 cases built by seeding violations programmatically: a compliant baseline, then one case per rule flipping exactly that rule to red (bond 5 weeks, advance 3 weeks, holding deposit over cap, increases 8 months apart, 45-day notice, fixed-term increase without disclosure, other security 500), plus combined-violation cases and boundary cases (bond exactly at cap, notice exactly 60 days, increase exactly 12 months).
 
-- [ ] **Step 2: Golden test** — `tests/test_golden.py`:
+- [x] **Step 2: Golden test** — `tests/test_golden.py`:
 
 ```python
 from datetime import date
@@ -1592,7 +1592,7 @@ async def test_golden_case(corpus_session, case_id, lease_kwargs, expected):
     assert actual == expected
 ```
 
-- [ ] **Step 3: Temporal test** — append to `tests/test_golden.py`. Choose the anchor from the T6 Step 4 candidate list (a section a V1 rule cites whose window closed at a reform date, or a rule whose `applies_from` falls inside the corpus range — the s41 12-month frequency commencement found in T8 Step 1 is the expected anchor). With `FREQ_COMMENCED` set to that pinned date:
+- [x] **Step 3: Temporal test** — append to `tests/test_golden.py`. Choose the anchor from the T6 Step 4 candidate list (a section a V1 rule cites whose window closed at a reform date, or a rule whose `applies_from` falls inside the corpus range — the s41 12-month frequency commencement found in T8 Step 1 is the expected anchor). With `FREQ_COMMENCED` set to that pinned date:
 
 ```python
 async def test_same_lease_differs_across_reform(corpus_session):
@@ -1623,7 +1623,7 @@ async def test_same_lease_differs_across_reform(corpus_session):
 
 (T8 must therefore export `FREQ_COMMENCED: date` from `app/rules/nsw.py` — the pinned commencement used as that rule's `applies_from`.)
 
-- [ ] **Step 4: Run -> all pass; full suite; ruff; commit** (`Add the golden set and temporal test`); push; CI green. Report and WAIT.
+- [x] **Step 4: Run -> all pass; full suite; ruff; commit** (`Add the golden set and temporal test`); push; CI green. Report and WAIT.
 
 ---
 
