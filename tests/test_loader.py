@@ -63,3 +63,12 @@ async def test_before_first_version_is_none(db_session):
     act = await _act(db_session)
     await load_version(db_session, act.id, V1, [_ps("1", "Name", "A")])
     assert (await section_at(db_session, "act-test", "1", date(2009, 1, 1))) is None
+
+
+async def test_ensure_act_creates_then_reuses(db_session):
+    from app.ingest.registry import NSW_ACT, ensure_act
+
+    created = await ensure_act(db_session)
+    assert created.slug == NSW_ACT["slug"]
+    again = await ensure_act(db_session)
+    assert again.id == created.id

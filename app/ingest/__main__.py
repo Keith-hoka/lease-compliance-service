@@ -8,35 +8,11 @@ import asyncio
 from datetime import date
 from pathlib import Path
 
-from sqlalchemy import select
-
 from app.core.db import async_session_factory
-from app.ingest.fetcher import (
-    LANDING_URL_TEMPLATE,
-    fetch_landing,
-    fetch_versions,
-    parse_version_dates,
-)
+from app.ingest.fetcher import fetch_landing, fetch_versions, parse_version_dates
 from app.ingest.loader import load_version
 from app.ingest.parser import parse_whole_act
-from app.models import Act
-
-NSW_ACT = {
-    "jurisdiction": "NSW",
-    "slug": "act-2010-042",
-    "title": "Residential Tenancies Act 2010",
-}
-
-
-async def ensure_act(session) -> Act:
-    act = (
-        await session.execute(select(Act).where(Act.slug == NSW_ACT["slug"]))
-    ).scalar_one_or_none()
-    if act is None:
-        act = Act(**NSW_ACT, source_url=LANDING_URL_TEMPLATE.format(slug=NSW_ACT["slug"]))
-        session.add(act)
-        await session.flush()
-    return act
+from app.ingest.registry import NSW_ACT, ensure_act
 
 
 async def load_all(paths) -> None:
@@ -65,4 +41,5 @@ def main() -> None:
     asyncio.run(load_all(paths))
 
 
-main()
+if __name__ == "__main__":
+    main()

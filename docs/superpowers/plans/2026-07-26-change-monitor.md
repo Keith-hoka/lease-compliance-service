@@ -269,7 +269,7 @@ def downgrade() -> None:
 - Consumes: `Act` model, `LANDING_URL_TEMPLATE`.
 - Produces: `app.ingest.registry.NSW_ACT: dict` (keys `jurisdiction`, `slug`, `title`) and `async ensure_act(session) -> Act` — importable without side effects (unlike `app.ingest.__main__`, which runs `main()` on import today).
 
-- [ ] **Step 1: Failing test** — append to `tests/test_loader.py`:
+- [x] **Step 1: Failing test** — append to `tests/test_loader.py`:
 
 ```python
 async def test_ensure_act_creates_then_reuses(db_session):
@@ -281,9 +281,9 @@ async def test_ensure_act_creates_then_reuses(db_session):
     assert again.id == created.id
 ```
 
-- [ ] **Step 2: Run -> fail** (ModuleNotFoundError: `app.ingest.registry`).
+- [x] **Step 2: Run -> fail** (ModuleNotFoundError: `app.ingest.registry`).
 
-- [ ] **Step 3: Implement** — `app/ingest/registry.py`:
+- [x] **Step 3: Implement** — `app/ingest/registry.py`:
 
 ```python
 from sqlalchemy import select
@@ -317,11 +317,11 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run -> pass.** `uv run pytest tests/test_loader.py -q`.
+- [x] **Step 4: Run -> pass.** `uv run pytest tests/test_loader.py -q`.
 
-- [ ] **Step 5: Manual CLI check** — `uv run python -m app.ingest nsw --limit-versions 1` (opens Chrome once for the landing page; version file is cached). Expected final line: `2010-06-17: sections=227 LoadStats(inserted=0, closed=0, skipped=True)`.
+- [x] **Step 5: Manual CLI check** — `uv run python -m app.ingest nsw --limit-versions 1` (opens Chrome once for the landing page; version file is cached). Expected final line: `2010-06-17: sections=227 LoadStats(inserted=0, closed=0, skipped=True)`.
 
-- [ ] **Step 6: Full suite; ruff; commit** (`Move the act registry out of the ingest entrypoint`); push; CI green. Report and WAIT.
+- [x] **Step 6: Full suite; ruff; commit** (`Move the act registry out of the ingest entrypoint`); push; CI green. Report and WAIT.
 
 ---
 
