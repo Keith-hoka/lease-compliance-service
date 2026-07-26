@@ -63,6 +63,9 @@ curl -s "http://localhost:8000/v1/audit-changes?since=2026-07-26T00:00:00Z" \
   -H "X-API-Key: dev-key"
 ```
 
+To run the monitor on a daily launchd schedule, see
+[deploy/launchd/README.md](deploy/launchd/README.md).
+
 ## Legislation source and licensing
 
 Legislation text is sourced from the NSW legislation website
