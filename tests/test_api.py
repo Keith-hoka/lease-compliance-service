@@ -152,3 +152,26 @@ async def test_section_lookup(client, seeded):
         headers=KEY,
     )
     assert missing.status_code == 404
+
+
+async def test_list_audits_by_client_ref(client, seeded):
+    for _ in range(2):
+        await client.post("/v1/audits", json=dict(AUDIT_BODY, client_ref="lease-9"), headers=KEY)
+    await client.post("/v1/audits", json=AUDIT_BODY, headers=KEY)
+
+    listed = await client.get("/v1/audits", params={"client_ref": "lease-9"}, headers=KEY)
+    assert listed.status_code == 200
+    body = listed.json()
+    assert len(body) == 2
+    assert all(item["client_ref"] == "lease-9" for item in body)
+    assert body[0]["created_at"] >= body[1]["created_at"]
+
+
+async def test_list_audits_is_tenant_scoped(client, seeded):
+    await client.post("/v1/audits", json=dict(AUDIT_BODY, client_ref="lease-9"), headers=KEY)
+    other = await client.get("/v1/audits", params={"client_ref": "lease-9"}, headers=OTHER)
+    assert other.json() == []
+
+
+async def test_list_audits_requires_client_ref(client):
+    assert (await client.get("/v1/audits", headers=KEY)).status_code == 422

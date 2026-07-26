@@ -2,6 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import require_api_key
@@ -59,3 +60,28 @@ async def get_audit(audit_id: uuid.UUID, client_id: ClientDep, session: SessionD
         findings=audit.findings,
         created_at=audit.created_at,
     )
+
+
+@router.get("/audits", response_model=list[AuditInfo])
+async def list_audits(
+    client_ref: str, client_id: ClientDep, session: SessionDep, limit: int = 20
+) -> list[AuditInfo]:
+    query = (
+        select(Audit)
+        .where(Audit.client_id == client_id, Audit.client_ref == client_ref)
+        .order_by(Audit.created_at.desc(), Audit.id.desc())
+        .limit(limit)
+    )
+    rows = (await session.execute(query)).scalars().all()
+    return [
+        AuditInfo(
+            id=row.id,
+            jurisdiction=row.jurisdiction,
+            as_at=row.as_at,
+            engine_version=row.engine_version,
+            client_ref=row.client_ref,
+            findings=row.findings,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
