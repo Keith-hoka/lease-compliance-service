@@ -603,7 +603,7 @@ async def run_monitor(session: AsyncSession, jurisdiction: str, as_at: date) -> 
 - Consumes: fetcher (`fetch_landing`, `fetch_versions`, `parse_version_dates`), `parse_whole_act`, `load_version`, `registry.NSW_ACT`/`ensure_act`, `runner.new_version_dates`/`run_monitor`, `IngestedVersion`.
 - Produces: `sydney_today() -> date` in `app.core.dates` (Task 7's router reuses it); CLI `uv run python -m app.monitor nsw [--skip-fetch]`.
 
-- [ ] **Step 1: `app/core/dates.py`:**
+- [x] **Step 1: `app/core/dates.py`:**
 
 ```python
 from datetime import date, datetime
@@ -615,7 +615,7 @@ def sydney_today() -> date:
     return datetime.now(tz=ZoneInfo("Australia/Sydney")).date()
 ```
 
-- [ ] **Step 2: Failing corpus eval** — append to `tests/test_monitor.py` (the fixture import mirrors `tests/test_golden.py`):
+- [x] **Step 2: Failing corpus eval** — append to `tests/test_monitor.py` (the fixture import mirrors `tests/test_golden.py`):
 
 ```python
 from sqlalchemy import select
@@ -675,9 +675,9 @@ async def test_s42_repeal_flips_disclosure_on_corpus(corpus_session):  # noqa: F
 
 The expected delta is exact: at 2024-06-01 the disclosure rule (s42, repealed 2024-12-13) is red for this lease and the first-year rule (commenced 2024-10-31) is skipped; today both flip. Every other rule keeps its verdict.
 
-- [ ] **Step 3: Run the eval.** `uv run pytest tests/test_monitor.py -q`. This eval characterizes Task 5's runner against the real corpus, so a first-run pass is the acceptance signal (the TDD failure for this module happened in Tasks 4-5). If it fails, the corpus or rules drifted from the pinned expectations — investigate the diff; do not massage the expected delta.
+- [x] **Step 3: Run the eval.** `uv run pytest tests/test_monitor.py -q`. This eval characterizes Task 5's runner against the real corpus, so a first-run pass is the acceptance signal (the TDD failure for this module happened in Tasks 4-5). If it fails, the corpus or rules drifted from the pinned expectations — investigate the diff; do not massage the expected delta.
 
-- [ ] **Step 4: CLI** — `app/monitor/__main__.py`:
+- [x] **Step 4: CLI** — `app/monitor/__main__.py`:
 
 ```python
 """Monitor legislation changes and re-audit monitored leases.
@@ -758,11 +758,11 @@ if __name__ == "__main__":
 
 Note the single `asyncio.run` for both phases: the module-level engine pools connections per event loop, and two sequential `asyncio.run` calls would replay V1's cross-loop failure. `fetch_versions` returns paths for every requested date, so the loop re-checks membership in `missing` before loading.
 
-- [ ] **Step 5: Manual CLI checks** —
+- [x] **Step 5: Manual CLI checks** —
   1. `uv run python -m app.monitor nsw --skip-fetch` — expected: `monitor: checked=0 changed=0` (dev store audits are `legacy` with NULL `client_ref`).
   2. `uv run python -m app.monitor nsw` — opens Chrome for the landing page; expected `corpus: no new versions` (or ingest lines if NSW published since 2026-06-10 — report whichever happened) then the monitor summary.
 
-- [ ] **Step 6: Run -> pass; full suite; ruff; commit** (`Add the monitor CLI and corpus temporal eval`); push; CI green. Report (include the manual CLI output) and WAIT.
+- [x] **Step 6: Run -> pass; full suite; ruff; commit** (`Add the monitor CLI and corpus temporal eval`); push; CI green. Report (include the manual CLI output) and WAIT.
 
 ---
 

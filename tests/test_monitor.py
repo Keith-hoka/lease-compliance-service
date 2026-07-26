@@ -1,11 +1,15 @@
 from datetime import date
 
+from sqlalchemy import select
+
+from app.core.dates import sydney_today
 from app.ingest.loader import load_version
 from app.ingest.parser import ParsedSection
-from app.models import Act, Audit
+from app.models import Act, Audit, AuditChange
 from app.monitor.runner import diff_findings, new_version_dates, run_monitor
 from app.rules.engine import run_audit
 from app.schemas.lease import LeaseInput
+from tests.test_rules_nsw import corpus_session  # noqa: F401  (reuse the skip-guard fixture)
 
 
 def _f(rule_id, verdict):
@@ -124,3 +128,51 @@ async def test_same_ref_different_tenants_grouped_separately(db_session):
     result = await run_monitor(db_session, "NSW", date(2021, 6, 1))
     assert result.checked == 2
     assert len(result.changes) == 2
+
+
+async def test_s42_repeal_flips_disclosure_on_corpus(corpus_session):  # noqa: F811
+    """A pre-repeal fixed-term audit re-run today must show the s42 flip."""
+    lease = LeaseInput(
+        rent_amount="600",
+        rent_frequency="weekly",
+        start_date="2024-01-01",
+        end_date="2025-01-01",
+        rent_increases=[{"effective_on": "2024-09-01", "new_amount": "620"}],
+    )
+    findings = await run_audit(corpus_session, "NSW", date(2024, 6, 1), lease)
+    audit = Audit(
+        jurisdiction="NSW",
+        as_at=date(2024, 6, 1),
+        input=lease.model_dump(mode="json"),
+        findings=[f.model_dump(mode="json") for f in findings],
+        engine_version="1.0.0",
+        client_id="evaltest",
+        client_ref="eval-lease-1",
+    )
+    corpus_session.add(audit)
+    await corpus_session.commit()
+    try:
+        result = await run_monitor(corpus_session, "NSW", sydney_today())
+        [change] = [c for c in result.changes if c.client_id == "evaltest"]
+        assert change.changes == {
+            "nsw.fixed_term_increase_disclosure": {"from": "red", "to": "skipped"},
+            "nsw.rent_increase_first_year": {"from": "skipped", "to": "red"},
+        }
+    finally:
+        for row in (
+            (
+                await corpus_session.execute(
+                    select(AuditChange).where(AuditChange.client_id == "evaltest")
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            await corpus_session.delete(row)
+        for row in (
+            (await corpus_session.execute(select(Audit).where(Audit.client_id == "evaltest")))
+            .scalars()
+            .all()
+        ):
+            await corpus_session.delete(row)
+        await corpus_session.commit()
