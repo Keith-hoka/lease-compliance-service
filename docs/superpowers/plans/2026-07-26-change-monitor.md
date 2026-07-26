@@ -58,7 +58,7 @@
 - Consumes: `settings.api_keys` (existing str field).
 - Produces: `require_api_key(x_api_key: str = Header(default="")) -> str` returning the authenticated `client_id`. Existing router-level `dependencies=[Depends(require_api_key)]` keeps working (return value unused until Task 7).
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_auth.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_auth.py`:
 
 ```python
 import pytest
@@ -98,9 +98,9 @@ def test_unlabelled_entry_is_unusable(monkeypatch):
         require_api_key("bare-key")
 ```
 
-- [ ] **Step 2: Run -> fail.** `uv run pytest tests/test_auth.py -q` — expect failures: current `require_api_key` returns `None` and accepts any configured bare key ("abc123:rentalapp" is currently treated as one whole key, so `require_api_key("abc123")` raises where the test expects "rentalapp").
+- [x] **Step 2: Run -> fail.** `uv run pytest tests/test_auth.py -q` — expect failures: current `require_api_key` returns `None` and accepts any configured bare key ("abc123:rentalapp" is currently treated as one whole key, so `require_api_key("abc123")` raises where the test expects "rentalapp").
 
-- [ ] **Step 3: Implement** — replace the body of `app/core/auth.py`:
+- [x] **Step 3: Implement** — replace the body of `app/core/auth.py`:
 
 ```python
 from fastapi import Header, HTTPException
@@ -121,7 +121,7 @@ def require_api_key(x_api_key: str = Header(default="")) -> str:
     return client_id
 ```
 
-- [ ] **Step 4: Update the API fixture** — in `tests/test_api.py` change the autouse fixture to the pair format (single line change):
+- [x] **Step 4: Update the API fixture** — in `tests/test_api.py` change the autouse fixture to the pair format (single line change):
 
 ```python
 @pytest.fixture(autouse=True)
@@ -129,9 +129,9 @@ def api_key(monkeypatch):
     monkeypatch.setattr(settings, "api_keys", "test-key:testco,other-key:otherco")
 ```
 
-- [ ] **Step 5: Run -> pass.** `uv run pytest tests/test_auth.py tests/test_api.py -q` — all pass (API routes still use the router-level dependency; the return value is ignored for now).
+- [x] **Step 5: Run -> pass.** `uv run pytest tests/test_auth.py tests/test_api.py -q` — all pass (API routes still use the router-level dependency; the return value is ignored for now).
 
-- [ ] **Step 6: Full suite; ruff; commit** (`Return tenant identity from API key auth`); push; CI green. Report and WAIT.
+- [x] **Step 6: Full suite; ruff; commit** (`Return tenant identity from API key auth`); push; CI green. Report and WAIT.
 
 ---
 
@@ -348,7 +348,9 @@ def _f(rule_id, verdict):
 
 
 def test_diff_verdict_flip():
-    delta = diff_findings([_f("nsw.bond_max_4_weeks", "green")], [_f("nsw.bond_max_4_weeks", "red")])
+    delta = diff_findings(
+        [_f("nsw.bond_max_4_weeks", "green")], [_f("nsw.bond_max_4_weeks", "red")]
+    )
     assert delta == {"nsw.bond_max_4_weeks": {"from": "green", "to": "red"}}
 
 
@@ -653,7 +655,11 @@ async def test_s42_repeal_flips_disclosure_on_corpus(corpus_session):  # noqa: F
         }
     finally:
         for row in (
-            (await corpus_session.execute(select(AuditChange).where(AuditChange.client_id == "evaltest")))
+            (
+                await corpus_session.execute(
+                    select(AuditChange).where(AuditChange.client_id == "evaltest")
+                )
+            )
             .scalars()
             .all()
         ):

@@ -12,7 +12,7 @@ KEY = {"X-API-Key": "test-key"}
 
 @pytest.fixture(autouse=True)
 def api_key(monkeypatch):
-    monkeypatch.setattr(settings, "api_keys", "test-key")
+    monkeypatch.setattr(settings, "api_keys", "test-key:testco,other-key:otherco")
 
 
 @pytest.fixture
