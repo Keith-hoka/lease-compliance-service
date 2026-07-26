@@ -3,7 +3,7 @@ from datetime import date
 
 from sqlalchemy import select
 
-from app.models import Act, Audit, IngestedVersion, Section
+from app.models import Act, Audit, AuditChange, IngestedVersion, Section
 
 
 async def test_legislation_round_trip(db_session):
@@ -52,3 +52,29 @@ async def test_audit_round_trip(db_session):
     stored = (await db_session.execute(select(Audit))).scalar_one()
     assert stored.findings[0]["verdict"] == "green"
     assert isinstance(stored.id, uuid.UUID)
+
+
+async def test_audit_change_round_trip(db_session):
+    audit = Audit(
+        jurisdiction="NSW",
+        as_at=date(2026, 7, 24),
+        input={"rent_amount": "600"},
+        findings=[],
+        engine_version="1.0.0",
+        client_id="rentalapp",
+        client_ref="lease-1",
+    )
+    db_session.add(audit)
+    await db_session.flush()
+    change = AuditChange(
+        client_id="rentalapp",
+        client_ref="lease-1",
+        old_audit_id=audit.id,
+        new_audit_id=audit.id,
+        changes={"nsw.bond_max_4_weeks": {"from": "green", "to": "red"}},
+    )
+    db_session.add(change)
+    await db_session.commit()
+    stored = (await db_session.execute(select(AuditChange))).scalar_one()
+    assert stored.changes["nsw.bond_max_4_weeks"]["to"] == "red"
+    assert stored.created_at is not None

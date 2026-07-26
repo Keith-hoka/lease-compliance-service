@@ -146,7 +146,7 @@ def api_key(monkeypatch):
 - Consumes: `Base`, existing `Audit`.
 - Produces: `Audit.client_id: str` (indexed, server_default `"legacy"`), `Audit.client_ref: str | None` (indexed); `AuditChange(id, client_id, client_ref, old_audit_id, new_audit_id, changes: dict, created_at)` exported from `app.models`.
 
-- [ ] **Step 1: Failing test** — append to `tests/test_models.py`:
+- [x] **Step 1: Failing test** — append to `tests/test_models.py`:
 
 ```python
 async def test_audit_change_round_trip(db_session):
@@ -181,9 +181,9 @@ Update the imports line in `tests/test_models.py`:
 from app.models import Act, Audit, AuditChange, IngestedVersion, Section
 ```
 
-- [ ] **Step 2: Run -> fail** (ImportError: cannot import `AuditChange`).
+- [x] **Step 2: Run -> fail** (ImportError: cannot import `AuditChange`).
 
-- [ ] **Step 3: Implement models** — in `app/models/audit.py`, add to `Audit`:
+- [x] **Step 3: Implement models** — in `app/models/audit.py`, add to `Audit`:
 
 ```python
     client_id: Mapped[str] = mapped_column(String(50), index=True, server_default="legacy")
@@ -214,7 +214,7 @@ from app.models.legislation import Act, IngestedVersion, Section
 __all__ = ["Act", "Audit", "AuditChange", "IngestedVersion", "Section"]
 ```
 
-- [ ] **Step 4: Migration** — `uv run alembic revision -m "monitor"`, then hand-write the generated file's bodies (`down_revision` is already set to the baseline id by alembic):
+- [x] **Step 4: Migration** — `uv run alembic revision -m "monitor"`, then hand-write the generated file's bodies (`down_revision` is already set to the baseline id by alembic):
 
 ```python
 def upgrade() -> None:
@@ -252,9 +252,9 @@ def downgrade() -> None:
     op.drop_column("audits", "client_id")
 ```
 
-- [ ] **Step 5: Verify migration cycle** — `uv run alembic upgrade head && uv run alembic downgrade -1 && uv run alembic upgrade head` against the dev DB. Existing audit rows get `client_id = "legacy"`, `client_ref = NULL` (excluded from monitoring by design).
+- [x] **Step 5: Verify migration cycle** — `uv run alembic upgrade head && uv run alembic downgrade -1 && uv run alembic upgrade head` against the dev DB. Existing audit rows get `client_id = "legacy"`, `client_ref = NULL` (excluded from monitoring by design).
 
-- [ ] **Step 6: Run -> pass; full suite; ruff; commit** (`Add tenant keys and the audit_changes table`); push; CI green. Report and WAIT.
+- [x] **Step 6: Run -> pass; full suite; ruff; commit** (`Add tenant keys and the audit_changes table`); push; CI green. Report and WAIT.
 
 ---
 
