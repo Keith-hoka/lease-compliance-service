@@ -335,7 +335,7 @@ if __name__ == "__main__":
 - Consumes: nothing app-side.
 - Produces: `diff_findings(old: list[dict], new: list[dict]) -> dict[str, dict]` (only changed rules; absent side is `None`) and `new_version_dates(timeline: list[date], ingested: set[date]) -> list[date]` (ascending). Task 5 extends this module; Task 6's CLI imports both.
 
-- [ ] **Step 1: Failing tests** — `tests/test_monitor.py`:
+- [x] **Step 1: Failing tests** — `tests/test_monitor.py`:
 
 ```python
 from datetime import date
@@ -381,9 +381,9 @@ def test_new_version_dates_subtracts_and_sorts():
     assert new_version_dates(timeline, ingested) == [date(2026, 9, 1)]
 ```
 
-- [ ] **Step 2: Run -> fail** (ModuleNotFoundError).
+- [x] **Step 2: Run -> fail** (ModuleNotFoundError).
 
-- [ ] **Step 3: Implement** — `app/monitor/runner.py`:
+- [x] **Step 3: Implement** — `app/monitor/runner.py`:
 
 ```python
 from datetime import date
@@ -408,7 +408,7 @@ def new_version_dates(timeline: list[date], ingested: set[date]) -> list[date]:
     return sorted(set(timeline) - ingested)
 ```
 
-- [ ] **Step 4: Run -> pass; full suite; ruff; commit** (`Add the monitor diff and version arithmetic`); push; CI green. Report and WAIT.
+- [x] **Step 4: Run -> pass; full suite; ruff; commit** (`Add the monitor diff and version arithmetic`); push; CI green. Report and WAIT.
 
 ---
 
