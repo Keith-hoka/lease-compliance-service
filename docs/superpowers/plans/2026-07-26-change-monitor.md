@@ -777,7 +777,7 @@ Note the single `asyncio.run` for both phases: the module-level engine pools con
 - Consumes: `require_api_key -> str` (Task 1), `AuditChange` (Task 2), `sydney_today` (Task 6).
 - Produces: `POST /v1/audits` accepting `client_ref` and stamping `client_id`; tenant-scoped `GET /v1/audits/{id}`; `GET /v1/audit-changes?since=&client_ref=&limit=` returning `list[AuditChangeInfo]` ascending by `created_at`.
 
-- [ ] **Step 1: Failing tests** — append to `tests/test_api.py`:
+- [x] **Step 1: Failing tests** — append to `tests/test_api.py`:
 
 ```python
 OTHER = {"X-API-Key": "other-key"}
@@ -854,9 +854,9 @@ Also update the `Audit` import at the top of `tests/test_api.py`:
 from app.models import Act, Audit
 ```
 
-- [ ] **Step 2: Run -> fail** (`client_ref` missing from the response, cross-tenant GET returns 200, `/v1/audit-changes` 404).
+- [x] **Step 2: Run -> fail** (`client_ref` missing from the response, cross-tenant GET returns 200, `/v1/audit-changes` 404).
 
-- [ ] **Step 3: Schemas** — in `app/schemas/audit.py` add `client_ref` to both models and the new info model:
+- [x] **Step 3: Schemas** — in `app/schemas/audit.py` add `client_ref` to both models and the new info model:
 
 ```python
 class AuditCreate(BaseModel):
@@ -885,7 +885,7 @@ class AuditChangeInfo(BaseModel):
     created_at: datetime
 ```
 
-- [ ] **Step 4: Audits router** — in `app/routers/audits.py`: replace the router line and both endpoints (`require_api_key` now injects per-endpoint so the value is available; `date.today` fallback becomes `sydney_today()`):
+- [x] **Step 4: Audits router** — in `app/routers/audits.py`: replace the router line and both endpoints (`require_api_key` now injects per-endpoint so the value is available; `date.today` fallback becomes `sydney_today()`):
 
 ```python
 router = APIRouter(prefix="/v1")
@@ -939,7 +939,7 @@ async def get_audit(audit_id: uuid.UUID, client_id: ClientDep, session: SessionD
 
 Imports to adjust at the top: drop `from datetime import datetime` / `ZoneInfo` lines (now unused), add `from app.core.dates import sydney_today`, and import `AuditChangeInfo` is NOT needed here.
 
-- [ ] **Step 5: Changes router** — `app/routers/changes.py`:
+- [x] **Step 5: Changes router** — `app/routers/changes.py`:
 
 ```python
 from datetime import datetime
@@ -1002,9 +1002,9 @@ app.include_router(changes_router)
 
 The legislation router keeps its router-level `dependencies=[Depends(require_api_key)]` — it needs no tenant value.
 
-- [ ] **Step 6: Run -> pass.** `uv run pytest tests/test_api.py -q`.
+- [x] **Step 6: Run -> pass.** `uv run pytest tests/test_api.py -q`.
 
-- [ ] **Step 7: README** — update the usage section: `API_KEYS` becomes `key:client_id` pairs (`API_KEYS=dev-key:rentalapp uv run uvicorn app.main:app`), add `client_ref` to the audit example body, and append the monitoring section:
+- [x] **Step 7: README** — update the usage section: `API_KEYS` becomes `key:client_id` pairs (`API_KEYS=dev-key:rentalapp uv run uvicorn app.main:app`), add `client_ref` to the audit example body, and append the monitoring section:
 
 ```markdown
 ## Change monitoring
@@ -1025,4 +1025,4 @@ curl -s "http://localhost:8000/v1/audit-changes?since=2026-07-26T00:00:00Z" \
 ```
 ```
 
-- [ ] **Step 8: Full suite; ruff; commit** (`Add tenant scoping and the audit-changes API`); push; CI green. Report and WAIT — change monitor complete.
+- [x] **Step 8: Full suite; ruff; commit** (`Add tenant scoping and the audit-changes API`); push; CI green. Report and WAIT — change monitor complete.
