@@ -422,7 +422,7 @@ def new_version_dates(timeline: list[date], ingested: set[date]) -> list[date]:
 - Consumes: `Audit`, `AuditChange`, `run_audit`, `ENGINE_VERSION`, `LeaseInput`, `diff_findings`.
 - Produces: `MonitorResult(checked: int, changes: list[AuditChange])`; `async latest_monitored_audits(session, jurisdiction: str) -> list[Audit]`; `async run_monitor(session, jurisdiction: str, as_at: date) -> MonitorResult` (commits on success). Task 6's CLI and the corpus eval call `run_monitor`.
 
-- [ ] **Step 1: Failing tests** — append to `tests/test_monitor.py`:
+- [x] **Step 1: Failing tests** — append to `tests/test_monitor.py`:
 
 ```python
 from app.ingest.loader import load_version
@@ -512,9 +512,9 @@ async def test_same_ref_different_tenants_grouped_separately(db_session):
     assert len(result.changes) == 2
 ```
 
-- [ ] **Step 2: Run -> fail** (ImportError: cannot import `run_monitor`).
+- [x] **Step 2: Run -> fail** (ImportError: cannot import `run_monitor`).
 
-- [ ] **Step 3: Implement** — append to `app/monitor/runner.py` (new imports go to the top of the file):
+- [x] **Step 3: Implement** — append to `app/monitor/runner.py` (new imports go to the top of the file):
 
 ```python
 from dataclasses import dataclass
@@ -587,9 +587,9 @@ async def run_monitor(session: AsyncSession, jurisdiction: str, as_at: date) -> 
     return MonitorResult(checked=len(monitored), changes=changes)
 ```
 
-- [ ] **Step 4: Run -> pass.** `uv run pytest tests/test_monitor.py -q`. The idempotence test passes because the monitor-written audit becomes the newest for its `(client_id, client_ref)` and re-diffs empty.
+- [x] **Step 4: Run -> pass.** `uv run pytest tests/test_monitor.py -q`. The idempotence test passes because the monitor-written audit becomes the newest for its `(client_id, client_ref)` and re-diffs empty.
 
-- [ ] **Step 5: Full suite; ruff; commit** (`Add the monitor runner`); push; CI green. Report and WAIT.
+- [x] **Step 5: Full suite; ruff; commit** (`Add the monitor runner`); push; CI green. Report and WAIT.
 
 ---
 
