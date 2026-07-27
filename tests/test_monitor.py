@@ -130,6 +130,17 @@ async def test_same_ref_different_tenants_grouped_separately(db_session):
     assert len(result.changes) == 2
 
 
+async def test_changes_in_one_run_get_distinct_timestamps(db_session):
+    """Same-run changes must not share created_at: the feed cursor is exclusive,
+    so a page boundary inside a timestamp tie would silently drop changes."""
+    await _seed_act(db_session)
+    await _stored_audit(db_session, client_id="rentalapp", client_ref="lease-1")
+    await _stored_audit(db_session, client_id="acme", client_ref="lease-1")
+    result = await run_monitor(db_session, "NSW", date(2021, 6, 1))
+    [first, second] = result.changes
+    assert first.created_at != second.created_at
+
+
 async def test_s42_repeal_flips_disclosure_on_corpus(corpus_session):  # noqa: F811
     """A pre-repeal fixed-term audit re-run today must show the s42 flip."""
     lease = LeaseInput(

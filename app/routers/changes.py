@@ -27,7 +27,7 @@ async def list_audit_changes(
     query = (
         select(AuditChange)
         .where(AuditChange.client_id == client_id)
-        .order_by(AuditChange.created_at.asc())
+        .order_by(AuditChange.created_at.asc(), AuditChange.id.asc())
         .limit(limit)
     )
     if since is not None:

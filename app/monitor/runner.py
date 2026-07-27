@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Audit, AuditChange
@@ -81,6 +81,7 @@ async def run_monitor(session: AsyncSession, jurisdiction: str, as_at: date) -> 
             old_audit_id=audit.id,
             new_audit_id=new_audit.id,
             changes=delta,
+            created_at=func.clock_timestamp(),
         )
         session.add(change)
         changes.append(change)
