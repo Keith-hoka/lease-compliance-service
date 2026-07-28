@@ -40,10 +40,11 @@ rendering clause findings) is a later milestone.
 
 ```
 { id, status: pending|running|succeeded|failed,
-  jurisdiction, as_at, engine_version, model,
-  findings: [ { rule, verdict: red|green|yellow, detail,
+  jurisdiction, as_at, engine_version, model, client_ref,
+  findings: [ { rule_id, verdict: red|green|yellow, summary, evidence,
                 clause_quote,          # lease text excerpt; may be null
-                citation: {act, section, url, as_at} } ],
+                citations: [{act, section_no, as_at, section_id}],
+                skip_reason } ],       # the existing Finding + Citation shapes
   discrepancies: [ {field, document_value, submitted_value} ],
   error, created_at, completed_at }
 ```
@@ -165,7 +166,8 @@ with two fixture PDFs (text-layer and image-only).
 **Layer 2 — real model, opt-in.** Marked `@pytest.mark.llm_eval`, skipped
 without `ANTHROPIC_API_KEY` (the corpus-test skip pattern).
 
-- Golden sets in `tests/golden/clauses/`: per rule ~8–10 YAML cases of
+- Golden sets in `tests/golden/clauses.py` (Python data modules, the
+  existing `tests/golden/leases.py` convention): per rule ~8–10 cases of
   mini-lease text + expected verdict; positives include paraphrases,
   negatives include hard look-alikes ("keep the carpet clean" is not
   "professionally cleaned"). Family 2 cases pair mini-lease text with
