@@ -8,6 +8,12 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://rental:rental@localhost:5433/lease_compliance"
     api_keys: str = ""
+    anthropic_api_key: str = ""
+    clause_audit_model: str = "claude-opus-4-8"
 
 
 settings = Settings()
+
+
+def clause_audit_enabled() -> bool:
+    return bool(settings.anthropic_api_key)
