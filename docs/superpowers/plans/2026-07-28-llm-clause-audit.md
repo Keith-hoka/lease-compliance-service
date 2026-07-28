@@ -1039,9 +1039,7 @@ def rule_active(rule: ClauseRule, as_at: date) -> bool:
     return not (rule.applies_to and as_at >= rule.applies_to)
 
 
-async def resolve_rule(
-    session: AsyncSession, rule: ClauseRule, as_at: date
-) -> Citation | None:
+async def resolve_rule(session: AsyncSession, rule: ClauseRule, as_at: date) -> Citation | None:
     section = await section_at(session, rule.ref.act_slug, rule.ref.section_no, as_at)
     if section is None:
         return None
@@ -2397,24 +2395,21 @@ PROHIBITED_CASES = [
     ClauseCase(
         "carpet-red-plain",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "The tenant must have all carpets professionally steam cleaned at the "
+        _PREAMBLE + "The tenant must have all carpets professionally steam cleaned at the "
         "conclusion of the tenancy and provide a receipt to the landlord.",
         "red",
     ),
     ClauseCase(
         "carpet-red-cost",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "On termination of this agreement the tenant agrees to pay the cost of "
+        _PREAMBLE + "On termination of this agreement the tenant agrees to pay the cost of "
         "professional carpet cleaning of the premises.",
         "red",
     ),
     ClauseCase(
         "carpet-red-paraphrase",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "Upon vacating, the floor coverings are to be cleaned by an accredited "
+        _PREAMBLE + "Upon vacating, the floor coverings are to be cleaned by an accredited "
         "professional cleaning company engaged and paid for by the tenant, "
         "receipts to be produced on request.",
         "red",
@@ -2422,8 +2417,7 @@ PROHIBITED_CASES = [
     ClauseCase(
         "carpet-red-buried",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "The tenant must keep the premises reasonably clean. The rent is payable "
+        _PREAMBLE + "The tenant must keep the premises reasonably clean. The rent is payable "
         "fortnightly in advance. The tenant shall arrange professional carpet "
         "cleaning at the end of the tenancy at the tenant's expense. Keys must be "
         "returned on the final day.",
@@ -2432,16 +2426,14 @@ PROHIBITED_CASES = [
     ClauseCase(
         "carpet-green-ordinary-cleaning",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "The tenant must keep the carpets clean and vacuum them regularly during "
+        _PREAMBLE + "The tenant must keep the carpets clean and vacuum them regularly during "
         "the tenancy.",
         "green",
     ),
     ClauseCase(
         "carpet-green-reasonably-clean",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "At the end of the tenancy the tenant must leave the premises reasonably "
+        _PREAMBLE + "At the end of the tenancy the tenant must leave the premises reasonably "
         "clean, having regard to their condition at the commencement of the "
         "tenancy.",
         "green",
@@ -2449,16 +2441,14 @@ PROHIBITED_CASES = [
     ClauseCase(
         "carpet-green-landlord-pays",
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "The landlord will arrange and pay for professional carpet cleaning "
+        _PREAMBLE + "The landlord will arrange and pay for professional carpet cleaning "
         "before the tenant takes possession.",
         "green",
     ),
     ClauseCase(
         "carpet-green-animal-carveout",  # verify against s 19: permitted where an animal was kept
         "nsw.clause.carpet_cleaning",
-        _PREAMBLE
-        + "If the tenant keeps an animal on the premises with the landlord's "
+        _PREAMBLE + "If the tenant keeps an animal on the premises with the landlord's "
         "consent, the tenant agrees to have the carpets professionally cleaned at "
         "the end of the tenancy.",
         "green",
@@ -2466,24 +2456,21 @@ PROHIBITED_CASES = [
     ClauseCase(
         "fumigation-red-plain",
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "On vacating the premises the tenant must have the premises "
+        _PREAMBLE + "On vacating the premises the tenant must have the premises "
         "professionally fumigated at the tenant's cost.",
         "red",
     ),
     ClauseCase(
         "fumigation-red-paraphrase",
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "The tenant shall engage a licensed pest control contractor to fumigate "
+        _PREAMBLE + "The tenant shall engage a licensed pest control contractor to fumigate "
         "the property at the end of the tenancy and bear the expense of doing so.",
         "red",
     ),
     ClauseCase(
         "fumigation-red-buried",
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "The rent is payable weekly in advance. Keys must be returned on the "
+        _PREAMBLE + "The rent is payable weekly in advance. Keys must be returned on the "
         "final day. Prior to returning possession the tenant will arrange, at "
         "the tenant's own cost, fumigation of the premises by a professional "
         "operator.",
@@ -2492,24 +2479,21 @@ PROHIBITED_CASES = [
     ClauseCase(
         "fumigation-green-notify",
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "The tenant must promptly notify the landlord of any pest or vermin "
+        _PREAMBLE + "The tenant must promptly notify the landlord of any pest or vermin "
         "infestation observed at the premises.",
         "green",
     ),
     ClauseCase(
         "fumigation-green-landlord-arranges",
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "The landlord will arrange and pay for pest treatment of the premises "
+        _PREAMBLE + "The landlord will arrange and pay for pest treatment of the premises "
         "before the commencement of the tenancy.",
         "green",
     ),
     ClauseCase(
         "fumigation-green-animal-carveout",  # verify against s 19: permitted where an animal was kept
         "nsw.clause.fumigation",
-        _PREAMBLE
-        + "If the tenant has kept an animal on the premises, the premises are to "
+        _PREAMBLE + "If the tenant has kept an animal on the premises, the premises are to "
         "be professionally fumigated at the end of the tenancy at the tenant's "
         "expense.",
         "green",
@@ -2517,32 +2501,28 @@ PROHIBITED_CASES = [
     ClauseCase(
         "insurance-red-specified",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "The tenant must take out and maintain contents insurance with AAMI for "
+        _PREAMBLE + "The tenant must take out and maintain contents insurance with AAMI for "
         "the duration of the tenancy.",
         "red",
     ),
     ClauseCase(
         "insurance-red-any",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "The tenant is required to obtain public liability insurance from an "
+        _PREAMBLE + "The tenant is required to obtain public liability insurance from an "
         "insurer nominated by the landlord before taking possession.",
         "red",
     ),
     ClauseCase(
         "insurance-green-encouraged",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "The tenant is encouraged to consider taking out contents insurance for "
+        _PREAMBLE + "The tenant is encouraged to consider taking out contents insurance for "
         "their own belongings.",
         "green",
     ),
     ClauseCase(
         "insurance-red-maintain",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "Throughout the term the tenant shall maintain a home contents policy "
+        _PREAMBLE + "Throughout the term the tenant shall maintain a home contents policy "
         "of insurance and provide the certificate of currency to the agent "
         "annually.",
         "red",
@@ -2550,16 +2530,14 @@ PROHIBITED_CASES = [
     ClauseCase(
         "insurance-green-landlord-holds",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "The landlord holds building and landlord insurance in respect of the "
+        _PREAMBLE + "The landlord holds building and landlord insurance in respect of the "
         "premises.",
         "green",
     ),
     ClauseCase(
         "insurance-green-not-covered-notice",
         "nsw.clause.specified_insurance",
-        _PREAMBLE
-        + "The tenant acknowledges that the tenant's personal belongings are not "
+        _PREAMBLE + "The tenant acknowledges that the tenant's personal belongings are not "
         "covered by the landlord's insurance policies.",
         "green",
     ),
@@ -2598,8 +2576,7 @@ FIELD_CASES = [
     ),
     FieldCase(
         "fields-date-mismatch",
-        _PREAMBLE + "The tenancy commences on 15 March 2026. The rent is $560 per "
-        "week.",
+        _PREAMBLE + "The tenancy commences on 15 March 2026. The rent is $560 per week.",
         {"rent_amount": "560", "start_date": "2026-02-01"},
         {"start_date"},
     ),

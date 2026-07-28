@@ -27,7 +27,7 @@ class Citation(BaseModel):
 
 class Finding(BaseModel):
     rule_id: str
-    verdict: Literal["red", "green", "skipped"]
+    verdict: Literal["red", "green", "yellow", "skipped"]
     summary: str
     evidence: dict = {}
     citations: list[Citation] = []

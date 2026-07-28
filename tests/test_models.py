@@ -78,3 +78,23 @@ async def test_audit_change_round_trip(db_session):
     stored = (await db_session.execute(select(AuditChange))).scalar_one()
     assert stored.changes["nsw.bond_max_4_weeks"]["to"] == "red"
     assert stored.created_at is not None
+
+
+async def test_clause_audit_job_roundtrip(db_session):
+    from app.models import ClauseAuditJob
+
+    job = ClauseAuditJob(
+        client_id="testco",
+        jurisdiction="NSW",
+        as_at=date(2026, 7, 28),
+        document=b"lease text",
+        document_kind="text",
+        engine_version="1.1.0",
+        model="claude-opus-4-8",
+    )
+    db_session.add(job)
+    await db_session.commit()
+    await db_session.refresh(job)
+    assert job.status == "pending"
+    assert job.findings == [] and job.discrepancies == []
+    assert job.document == b"lease text" and job.completed_at is None
