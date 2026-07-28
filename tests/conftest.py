@@ -43,3 +43,20 @@ async def client(db_engine):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+class FakeJudge:
+    """Canned judge: responses keyed by the output model's class name."""
+
+    def __init__(self):
+        self.responses = {}
+        self.calls = []
+
+    async def __call__(self, doc, instruction, output_model):
+        self.calls.append((doc, instruction, output_model))
+        return output_model.model_validate(self.responses[output_model.__name__])
+
+
+@pytest.fixture
+def fake_judge():
+    return FakeJudge()
