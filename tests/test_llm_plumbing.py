@@ -49,13 +49,11 @@ def test_fields_output_locks_field_names():
         )
 
 
-def test_text_document_block_carries_cache_control():
+def test_text_document_block_is_framed_and_cached():
     block = document_block(DocumentInput(kind="text", text="lease body"))
-    assert block == {
-        "type": "text",
-        "text": "lease body",
-        "cache_control": {"type": "ephemeral"},
-    }
+    assert block["type"] == "text"
+    assert block["text"] == "<lease_document>\nlease body\n</lease_document>"
+    assert block["cache_control"] == {"type": "ephemeral"}
 
 
 def test_pdf_document_block_is_base64_document():
@@ -105,6 +103,30 @@ def test_fields_instruction_lists_every_field():
         assert name in text
 
 
-def test_system_prompt_disclaims():
+def test_system_prompt_disclaims_and_distrusts_document():
     assert "general information" in SYSTEM
     assert "not legal advice" in SYSTEM
+    assert "untrusted" in SYSTEM
+    assert "lease_document" in SYSTEM
+
+
+async def test_make_judge_raises_on_refusal(monkeypatch):
+    from app.llm import client as llm_client
+
+    class StubResponse:
+        stop_reason = "refusal"
+        parsed_output = None
+
+    class StubMessages:
+        async def parse(self, **kwargs):
+            return StubResponse()
+
+    class StubClient:
+        def __init__(self, **kwargs):
+            self.messages = StubMessages()
+
+    monkeypatch.setattr(llm_client, "AsyncAnthropic", StubClient)
+    judge = llm_client.make_judge()
+    output_model = family_output_model("ProhibitedOutput", IDS)
+    with pytest.raises(llm_client.JudgeError):
+        await judge(DocumentInput(kind="text", text="x"), "instruction", output_model)

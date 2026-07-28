@@ -48,10 +48,11 @@ rather than a universal content term:
   implied by law (s 21) whether or not restated.
 - ss 73B-73I (2025 pets), 54A (DV), 74 (transfer): situational regimes.
 
-Known window gap, documented deliberately: the specified-contractor
-prohibition was prescribed by Regulation cl 5(a) from 2019-12-16 until it
-moved into Act s 19(2)(f) on 2025-05-19. The rule
-`nsw.clause.specified_contractor` cites the Act and applies from
-2025-05-19; audits as at 2019-12-16..2025-05-18 do not flag the effect
-(cl 5's current text no longer contains it, so a Regulation-cited rule
-would resolve to the wrong statutory text).
+Window handling for the specified-contractor effect: prescribed by
+Regulation cl 5(a) from 2019-12-16 until it moved into Act s 19(2)(f) on
+2025-05-19. Two rules cover the full history with no overlap —
+`nsw.clause.specified_contractor_reg` cites the Regulation with a closed
+window (2019-12-16 to 2025-05-19; point-in-time resolution returns the
+2019 cl 5 text, which contains the effect), and
+`nsw.clause.specified_contractor` cites the Act from 2025-05-19 onward.
+Exactly one is active at any as-at date.

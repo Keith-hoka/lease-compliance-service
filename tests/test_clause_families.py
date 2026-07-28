@@ -146,6 +146,56 @@ async def test_mandatory_red_needs_no_quote(fake_judge, db_session, seeded_s19, 
     assert findings[0].verdict == "red" and findings[0].clause_quote is None
 
 
+def _mandatory_rule():
+    return ClauseRule(
+        rule_id="nsw.clause.states_rent",
+        family="mandatory",
+        ref=SectionRef("act-2010-042", "19"),
+        applies_from=date(2011, 1, 31),
+        applies_to=None,
+        question="The agreement must state the rent.",
+    )
+
+
+def _mandatory_item(quote):
+    return {
+        "items": [
+            {
+                "rule_id": "nsw.clause.states_rent",
+                "verdict": "green",
+                "reasoning": "present",
+                "clause_quote": quote,
+            }
+        ]
+    }
+
+
+async def test_mandatory_green_with_matching_quote(fake_judge, db_session, seeded_s19, monkeypatch):
+    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
+    fake_judge.responses["MandatoryOutput"] = _mandatory_item("Rent is payable weekly.")
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    assert findings[0].verdict == "green"
+
+
+async def test_mandatory_green_quote_mismatch_downgrades(
+    fake_judge, db_session, seeded_s19, monkeypatch
+):
+    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
+    fake_judge.responses["MandatoryOutput"] = _mandatory_item("an invented rent clause")
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    assert findings[0].verdict == "yellow"
+    assert "quote" in findings[0].summary
+
+
+async def test_mandatory_green_without_quote_downgrades(
+    fake_judge, db_session, seeded_s19, monkeypatch
+):
+    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
+    fake_judge.responses["MandatoryOutput"] = _mandatory_item(None)
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    assert findings[0].verdict == "yellow"
+
+
 def _fields(items):
     return {"fields": items}
 

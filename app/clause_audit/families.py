@@ -15,6 +15,7 @@ from app.llm.prompts import (
     fields_instruction,
 )
 from app.llm.schemas import FieldsOutput, family_output_model
+from app.rules.base import Citation
 from app.schemas.clause_audit import ClauseFinding, ClauseLeaseInput, Discrepancy
 
 DATE_FIELDS = {"start_date", "end_date"}
@@ -28,11 +29,11 @@ async def _run_clause_family(
     rules: list[clause_rules.ClauseRule],
     family_name: str,
     output_name: str,
-    require_quote_on_red: bool,
+    quote_verdict: str,
     verdict_guidance: str,
 ) -> list[ClauseFinding]:
     findings: list[ClauseFinding] = []
-    active: list[tuple[clause_rules.ClauseRule, object]] = []
+    active: list[tuple[clause_rules.ClauseRule, Citation]] = []
     for rule in rules:
         if not clause_rules.rule_active(rule, as_at):
             findings.append(
@@ -64,6 +65,8 @@ async def _run_clause_family(
         family_name, as_at, sections, [(r.rule_id, r.question) for r, _ in active], verdict_guidance
     )
     output_model = family_output_model(output_name, [r.rule_id for r, _ in active])
+    # Release the read-only transaction so it does not idle across the model await.
+    await session.commit()
     result = await judge(doc, instruction, output_model)
     by_id = {str(item.rule_id): item for item in result.items}
 
@@ -80,9 +83,10 @@ async def _run_clause_family(
             )
             continue
         verdict, summary, quote = item.verdict, item.reasoning, item.clause_quote
-        if verdict == "red" and require_quote_on_red:
+        if verdict == quote_verdict:
             if quote is None:
-                verdict, summary = "yellow", "Downgraded: red verdict carried no quote."
+                verdict = "yellow"
+                summary = f"Downgraded: {quote_verdict} verdict carried no quote."
             elif not quote_matches(quote, doc.text):
                 verdict = "yellow"
                 summary = "Downgraded: quoted text was not found in the document."
@@ -110,7 +114,7 @@ async def run_prohibited(
         clause_rules.PROHIBITED_RULES,
         "prohibited terms",
         "ProhibitedOutput",
-        require_quote_on_red=True,
+        quote_verdict="red",
         verdict_guidance=PROHIBITED_GUIDANCE,
     )
 
@@ -126,7 +130,7 @@ async def run_mandatory(
         clause_rules.MANDATORY_RULES,
         "mandatory terms",
         "MandatoryOutput",
-        require_quote_on_red=False,
+        quote_verdict="green",
         verdict_guidance=MANDATORY_GUIDANCE,
     )
 

@@ -147,6 +147,20 @@ PROHIBITED_RULES = [
         ),
     ),
     ClauseRule(
+        rule_id="nsw.clause.specified_contractor_reg",
+        family="prohibited",
+        ref=SectionRef("sl-2019-0629", "5"),
+        applies_from=REG_COMMENCED,
+        applies_to=PETS_COMMENCED,
+        question=(
+            "A term with the effect that the tenant must use the services of a "
+            "specified person or business to carry out any of the tenant's "
+            "obligations under the agreement (Regulation cl 5(a) as in force "
+            "before 19 May 2025, when the effect moved into the Act as "
+            "s 19(2)(f))."
+        ),
+    ),
+    ClauseRule(
         rule_id="nsw.clause.utility_provider",
         family="prohibited",
         ref=SectionRef("sl-2019-0629", "5"),
