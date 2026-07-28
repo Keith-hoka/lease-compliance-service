@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from datetime import date
 
 import pytest
@@ -106,15 +107,29 @@ async def test_run_once_processes_oldest_pending(fake_judge, session_factory, se
     assert await worker.run_once(fake_judge, session_factory) is False
 
 
-async def test_run_once_failure_marks_failed_and_wipes(session_factory, seeded_s19):
+async def test_run_once_failure_is_sanitised_and_wipes(session_factory, seeded_s19):
     async def broken_judge(doc, instruction, output_model):
-        raise RuntimeError("model exploded")
+        raise RuntimeError("postgresql://user:secret@host exploded")
 
     job_id = await _add(session_factory, _job())
     assert await worker.run_once(broken_judge, session_factory) is True
     row = await _fetch(session_factory, job_id)
     assert row.status == "failed" and row.document is None
-    assert "model exploded" in row.error
+    assert row.error == "internal error while processing the job"
+    assert "secret" not in row.error
+
+
+async def test_run_once_judge_error_passes_through(session_factory, seeded_s19):
+    from app.llm.client import JudgeError
+
+    async def declining_judge(doc, instruction, output_model):
+        raise JudgeError("model declined the request")
+
+    job_id = await _add(session_factory, _job())
+    assert await worker.run_once(declining_judge, session_factory) is True
+    row = await _fetch(session_factory, job_id)
+    assert row.status == "failed"
+    assert row.error == "model declined the request"
 
 
 async def test_run_once_timeout_marks_failed(session_factory, seeded_s19, monkeypatch):
@@ -136,3 +151,43 @@ async def test_sweep_stale_fails_running_jobs(session_factory):
     assert stale.status == "failed" and stale.document is None
     assert "restart" in stale.error
     assert (await _fetch(session_factory, pending_id)).status == "pending"
+
+
+async def test_worker_loop_survives_claim_errors(
+    fake_judge, session_factory, seeded_s19, monkeypatch
+):
+    fake_judge.responses["ProhibitedOutput"] = RED
+    failures = {"left": 1}
+
+    def flaky_factory():
+        if failures["left"]:
+            failures["left"] -= 1
+            raise RuntimeError("db connection dropped")
+        return session_factory()
+
+    monkeypatch.setattr(worker, "POLL_SECONDS", 0.01)
+    job_id = await _add(session_factory, _job())
+    task = asyncio.create_task(worker.worker_loop(fake_judge, flaky_factory))
+    row = None
+    for _ in range(200):
+        row = await _fetch(session_factory, job_id)
+        if row.status == "succeeded":
+            break
+        await asyncio.sleep(0.02)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    assert row is not None and row.status == "succeeded"
+
+
+async def test_concurrent_claims_take_distinct_jobs(fake_judge, session_factory, seeded_s19):
+    fake_judge.responses["ProhibitedOutput"] = RED
+    first = await _add(session_factory, _job())
+    second = await _add(session_factory, _job())
+    results = await asyncio.gather(
+        worker.run_once(fake_judge, session_factory),
+        worker.run_once(fake_judge, session_factory),
+    )
+    assert list(results) == [True, True]
+    statuses = {(await _fetch(session_factory, job_id)).status for job_id in (first, second)}
+    assert statuses == {"succeeded"}

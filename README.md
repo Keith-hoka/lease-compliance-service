@@ -1,7 +1,8 @@
 # lease-compliance-service
 
 Deterministic NSW residential lease compliance audits with a temporal
-legislation store. Output is general information, not legal advice.
+legislation store, plus an LLM clause audit for lease documents. Output is
+general information, not legal advice.
 
 ## Usage
 
@@ -44,6 +45,27 @@ Residential Tenancies Act 2010 with a real browser, then loads it):
 ```bash
 uv run python -m app.ingest nsw
 ```
+
+## LLM clause audit
+
+Set `ANTHROPIC_API_KEY` to enable it (without the key the endpoint returns
+503 and no worker starts). Submit a lease document — PDF (max 10 MB) or
+plain text (max 200k chars) — as an async job; findings judge the clauses
+against NSW law with statutory citations and may abstain (`yellow`).
+Include `lease` money/date fields in the payload to also cross-check them
+against the document. Documents are deleted once the job finishes.
+
+```bash
+curl -s -X POST http://localhost:8000/v1/clause-audits \
+  -H "X-API-Key: dev-key" \
+  -F 'payload={"jurisdiction": "NSW", "client_ref": "lease-123"}' \
+  -F 'file=@lease.pdf'
+```
+
+Poll `GET /v1/clause-audits/{id}` until `status` is `succeeded` or
+`failed`; `GET /v1/clause-audits?client_ref=...` lists a lease's jobs.
+Golden-set evals for every rule run with `uv run pytest -m llm_eval`
+(needs the corpus store and the API key; costs real model calls).
 
 ## Change monitoring
 

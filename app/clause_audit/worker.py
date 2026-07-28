@@ -1,29 +1,36 @@
 """Claim pending clause-audit jobs and process them one at a time."""
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy import select
 
 from app.clause_audit.processor import process_job
 from app.core.db import async_session_factory
-from app.llm.client import JudgeFn
+from app.llm.client import JudgeError, JudgeFn
 from app.models import ClauseAuditJob
+
+logger = logging.getLogger("app.clause_audit")
 
 POLL_SECONDS = 2
 JOB_TIMEOUT_SECONDS = 900
+INTERNAL_ERROR = "internal error while processing the job"
 
 
 async def sweep_stale(session_factory=async_session_factory) -> None:
     """Fail jobs left running by a dead process; pending jobs survive untouched."""
     async with session_factory() as session:
         query = select(ClauseAuditJob).where(ClauseAuditJob.status == "running")
-        for job in (await session.execute(query)).scalars().all():
+        stale = (await session.execute(query)).scalars().all()
+        for job in stale:
             job.status = "failed"
             job.error = "interrupted by restart"
             job.document = None
             job.completed_at = datetime.now(UTC)
         await session.commit()
+        if stale:
+            logger.warning("swept %d stale running job(s)", len(stale))
 
 
 async def claim_next(session) -> ClauseAuditJob | None:
@@ -53,10 +60,16 @@ async def run_once(judge: JudgeFn, session_factory=async_session_factory) -> boo
         try:
             await asyncio.wait_for(process_job(session, job, judge), JOB_TIMEOUT_SECONDS)
             await session.commit()
+            logger.info("clause audit job %s succeeded", job_id)
         except TimeoutError:
+            logger.warning("clause audit job %s timed out", job_id)
             await _fail(session, job_id, "job timed out")
-        except Exception as exc:  # noqa: BLE001 - any failure must fail the job, not the worker
+        except JudgeError as exc:
+            logger.warning("clause audit job %s judge error: %s", job_id, exc)
             await _fail(session, job_id, str(exc))
+        except Exception:
+            logger.exception("clause audit job %s failed", job_id)
+            await _fail(session, job_id, INTERNAL_ERROR)
         return True
 
 
@@ -71,7 +84,12 @@ async def _fail(session, job_id, error: str) -> None:
 
 
 async def worker_loop(judge: JudgeFn, session_factory=async_session_factory) -> None:
+    """Poll forever; survive any per-iteration failure so the worker never dies."""
     while True:
-        processed = await run_once(judge, session_factory)
+        try:
+            processed = await run_once(judge, session_factory)
+        except Exception:
+            logger.exception("clause audit worker iteration failed")
+            processed = False
         if not processed:
             await asyncio.sleep(POLL_SECONDS)

@@ -14,9 +14,9 @@ from app.routers.legislation import router as legislation_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await sweep_stale()
     task = None
     if clause_audit_enabled():
-        await sweep_stale()
         task = asyncio.create_task(worker_loop(make_judge()))
     yield
     if task is not None:

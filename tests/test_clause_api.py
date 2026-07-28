@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 
@@ -86,6 +87,49 @@ async def test_create_get_and_isolation(client, db_session):
 
     listed = await client.get("/v1/clause-audits", params={"client_ref": "lease-9"}, headers=KEY)
     assert [row["id"] for row in listed.json()] == [body["id"]]
+
+
+async def test_lifespan_sweeps_even_when_disabled(monkeypatch):
+    from app import main
+
+    swept = {"n": 0}
+
+    async def spy_sweep():
+        swept["n"] += 1
+
+    started = {"n": 0}
+
+    async def spy_loop(judge):
+        started["n"] += 1
+
+    monkeypatch.setattr(main, "sweep_stale", spy_sweep)
+    monkeypatch.setattr(main, "worker_loop", spy_loop)
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    async with main.lifespan(main.app):
+        pass
+    assert swept["n"] == 1 and started["n"] == 0
+
+
+async def test_lifespan_sweeps_and_starts_worker_when_enabled(monkeypatch):
+    from app import main
+
+    swept = {"n": 0}
+
+    async def spy_sweep():
+        swept["n"] += 1
+
+    started = {"n": 0}
+
+    async def spy_loop(judge):
+        started["n"] += 1
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(main, "sweep_stale", spy_sweep)
+    monkeypatch.setattr(main, "worker_loop", spy_loop)
+    monkeypatch.setattr(main, "make_judge", lambda: object())
+    async with main.lifespan(main.app):
+        await asyncio.sleep(0)
+    assert swept["n"] == 1 and started["n"] == 1
 
 
 async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeypatch):

@@ -61,6 +61,8 @@ async def create_clause_audit(
             raise HTTPException(status_code=413, detail="Text too large")
         document, kind = text.encode("utf-8"), "text"
     else:
+        if file.size is not None and file.size > MAX_PDF_BYTES:
+            raise HTTPException(status_code=413, detail="File too large")
         document = await file.read()
         if len(document) > MAX_PDF_BYTES:
             raise HTTPException(status_code=413, detail="File too large")
