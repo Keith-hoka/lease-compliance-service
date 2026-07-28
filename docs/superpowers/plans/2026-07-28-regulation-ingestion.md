@@ -295,7 +295,7 @@ Also confirm the lookup path end to end once: start the API (`API_KEYS=dev-key:r
 - Consumes: the loaded Regulation corpus.
 - Produces: the classified survey; possibly proposed rules for approval.
 
-- [ ] **Step 1: Find candidate clauses** — search the current Regulation text for lease-domain terms and list matches:
+- [x] **Step 1: Find candidate clauses** — search the current Regulation text for lease-domain terms and list matches:
 
 ```bash
 uv run python -c "
@@ -317,11 +317,11 @@ asyncio.run(main())
 "
 ```
 
-- [ ] **Step 2: Read and classify** — for each hit, read the clause body from the corpus (`section_at` at today) and classify against the current `LeaseInput` fields (`rent_amount`, `rent_frequency`, `start_date`, `end_date`, `bond_amount`, `rent_in_advance_amount`, `holding_deposit_amount`, `other_security_amount`, `break_fee_amount`, `rent_increases`, `fixed_term_increase_in_agreement`):
+- [x] **Step 2: Read and classify** — for each hit, read the clause body from the corpus (`section_at` at today) and classify against the current `LeaseInput` fields (`rent_amount`, `rent_frequency`, `start_date`, `end_date`, `bond_amount`, `rent_in_advance_amount`, `holding_deposit_amount`, `other_security_amount`, `break_fee_amount`, `rent_increases`, `fixed_term_increase_in_agreement`):
   - **Computable now**: the check is a pure function of those fields.
   - **Needs new inputs**: name the missing input and the supplying milestone (SaaS form fields or LLM clause audit).
   - **Not rule-shaped**: procedural/definitional clauses with nothing to check.
 
-- [ ] **Step 3: Write `docs/rule-candidates.md`** — one table row per candidate: clause number, heading, one-line obligation summary, classification, missing input (if any), pinned operative quote (short). Honest outcome allowed: zero computable rules.
+- [x] **Step 3: Write `docs/rule-candidates.md`** — one table row per candidate: clause number, heading, one-line obligation summary, classification, missing input (if any), pinned operative quote (short). Honest outcome allowed: zero computable rules.
 
-- [ ] **Step 4: Full suite; ruff; commit** (`Add the Regulation rule-candidate survey`); push; CI green. Report the classification summary and WAIT. If any candidate is **computable now**, the report proposes it (pinned text, threshold, `applies_from` from corpus windows) and implementation proceeds only after approval as an amendment task using the V1 rule pattern (failing red/green/skipped tests on the corpus first, then the rule in `app/rules/nsw.py`, golden extension, full rhythm).
+- [x] **Step 4: Full suite; ruff; commit** (`Add the Regulation rule-candidate survey`); push; CI green. Report the classification summary and WAIT. If any candidate is **computable now**, the report proposes it (pinned text, threshold, `applies_from` from corpus windows) and implementation proceeds only after approval as an amendment task using the V1 rule pattern (failing red/green/skipped tests on the corpus first, then the rule in `app/rules/nsw.py`, golden extension, full rhythm).
