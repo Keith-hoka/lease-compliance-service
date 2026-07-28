@@ -198,11 +198,11 @@ and in `run(...)` replace `NSW_ACT["jurisdiction"]` with `NSW_INSTRUMENTS[0]["ju
 - Consumes: Task 1's CLIs; `section_at(session, act_slug, section_no, as_at)`.
 - Produces: the loaded Regulation corpus and its skip-guarded tests.
 
-- [ ] **Step 1: Trial run** — `uv run python -m app.ingest nsw --limit-versions 1` (opens Chrome; Act line skips, Regulation fetches its first version). Expected final line shape: `sl-2019-0629 2019-12-16: sections=<n> LoadStats(inserted=<n>, closed=0, skipped=False)`.
+- [x] **Step 1: Trial run** — `uv run python -m app.ingest nsw --limit-versions 1` (opens Chrome; Act line skips, Regulation fetches its first version). Expected final line shape: `sl-2019-0629 2019-12-16: sections=<n> LoadStats(inserted=<n>, closed=0, skipped=False)`.
 
-- [ ] **Step 2: Full backfill** — `uv run python -m app.ingest nsw` (~19 more Regulation fetches at 2 s spacing). Then re-run the same command: every line for both instruments must print `skipped=True` (idempotency proof). Record both outputs for the report.
+- [x] **Step 2: Full backfill** — `uv run python -m app.ingest nsw` (~19 more Regulation fetches at 2 s spacing). Then re-run the same command: every line for both instruments must print `skipped=True` (idempotency proof). Record both outputs for the report.
 
-- [ ] **Step 3: Failing tests** — `tests/test_regulation_corpus.py`:
+- [x] **Step 3: Failing tests** — `tests/test_regulation_corpus.py`:
 
 ```python
 from datetime import date
@@ -256,9 +256,9 @@ async def test_regulation_before_first_version_is_none(regulation_session):
 
 If clause 1 turns out to have been amended (its earliest window not starting at `FIRST_VERSION`), pin the assertion to the actual corpus window and note it in the report.
 
-- [ ] **Step 4: Run -> pass.** `uv run pytest tests/test_regulation_corpus.py -q` (skips before the backfill, passes after — Step 2 already ran, so expect 2 passed).
+- [x] **Step 4: Run -> pass.** `uv run pytest tests/test_regulation_corpus.py -q` (skips before the backfill, passes after — Step 2 already ran, so expect 2 passed).
 
-- [ ] **Step 5: Spot-check script** (output goes in the report):
+- [x] **Step 5: Spot-check script** (output goes in the report):
 
 ```bash
 uv run python -c "
@@ -282,7 +282,7 @@ asyncio.run(main())
 
 Also confirm the lookup path end to end once: start the API (`API_KEYS=dev-key:rentalapp uv run uvicorn app.main:app --port 8100`), `curl -s "http://localhost:8100/v1/legislation/sections?act=sl-2019-0629&section_no=1&as_at=2026-01-01" -H "X-API-Key: dev-key"` returns the clause, and a pre-2019 `as_at` returns 404; stop the server. Record both responses.
 
-- [ ] **Step 6: Full suite; ruff; commit** (`Load the Regulation corpus and its spot-checks`); push; CI green. Report (include run + spot-check output) and WAIT.
+- [x] **Step 6: Full suite; ruff; commit** (`Load the Regulation corpus and its spot-checks`); push; CI green. Report (include run + spot-check output) and WAIT.
 
 ---
 
