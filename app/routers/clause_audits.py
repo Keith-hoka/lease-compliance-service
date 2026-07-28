@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import require_api_key
@@ -21,6 +21,7 @@ ClientDep = Annotated[str, Depends(require_api_key)]
 
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_TEXT_CHARS = 200_000
+MAX_IN_FLIGHT_PER_TENANT = 10
 
 
 def _info(job: ClauseAuditJob) -> ClauseAuditInfo:
@@ -56,6 +57,18 @@ async def create_clause_audit(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if (file is None) == (text is None):
         raise HTTPException(status_code=422, detail="Provide exactly one of file or text")
+    in_flight = (
+        await session.execute(
+            select(func.count())
+            .select_from(ClauseAuditJob)
+            .where(
+                ClauseAuditJob.client_id == client_id,
+                ClauseAuditJob.status.in_(("pending", "running")),
+            )
+        )
+    ).scalar_one()
+    if in_flight >= MAX_IN_FLIGHT_PER_TENANT:
+        raise HTTPException(status_code=429, detail="Too many clause audits in flight")
     if text is not None:
         if len(text) > MAX_TEXT_CHARS:
             raise HTTPException(status_code=413, detail="Text too large")

@@ -89,6 +89,34 @@ async def test_create_get_and_isolation(client, db_session):
     assert [row["id"] for row in listed.json()] == [body["id"]]
 
 
+async def test_tenant_in_flight_cap_returns_429(client, db_session):
+    from datetime import UTC, datetime
+
+    for _ in range(10):
+        db_session.add(
+            ClauseAuditJob(
+                client_id="testco",
+                jurisdiction="NSW",
+                as_at=datetime.now(UTC).date(),
+                document=b"x",
+                document_kind="text",
+                engine_version="1.1.1",
+                model="claude-opus-4-8",
+            )
+        )
+    await db_session.commit()
+
+    capped = await client.post(
+        "/v1/clause-audits", data={"payload": PAYLOAD, "text": "lease"}, headers=KEY
+    )
+    assert capped.status_code == 429
+
+    other = await client.post(
+        "/v1/clause-audits", data={"payload": PAYLOAD, "text": "lease"}, headers=OTHER
+    )
+    assert other.status_code == 202
+
+
 async def test_lifespan_sweeps_even_when_disabled(monkeypatch):
     from app import main
 

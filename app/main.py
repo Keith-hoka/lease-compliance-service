@@ -1,11 +1,18 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clause_audit.worker import sweep_stale, worker_loop
 from app.core.config import clause_audit_enabled
+from app.core.db import get_session
+from app.core.logs import configure_logging
 from app.llm.client import make_judge
+from app.models import ClauseAuditJob
 from app.routers.audits import router as audits_router
 from app.routers.changes import router as changes_router
 from app.routers.clause_audits import router as clause_audits_router
@@ -14,6 +21,7 @@ from app.routers.legislation import router as legislation_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     await sweep_stale()
     task = None
     if clause_audit_enabled():
@@ -37,5 +45,14 @@ app.include_router(legislation_router)
 
 
 @app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
+async def health(session: Annotated[AsyncSession, Depends(get_session)]) -> dict:
+    """Liveness plus the cheapest dead-worker detector: the pending queue."""
+    count, oldest = (
+        await session.execute(
+            select(func.count(), func.min(ClauseAuditJob.created_at)).where(
+                ClauseAuditJob.status == "pending"
+            )
+        )
+    ).one()
+    age = (datetime.now(UTC) - oldest).total_seconds() if oldest is not None else None
+    return {"status": "ok", "clause_audit": {"pending": count, "oldest_pending_seconds": age}}
