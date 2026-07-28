@@ -1,5 +1,7 @@
 from datetime import date
 
+from sqlalchemy import select
+
 from app.ingest.loader import LoadStats, load_version
 from app.ingest.parser import ParsedSection
 from app.models import Act
@@ -66,9 +68,13 @@ async def test_before_first_version_is_none(db_session):
 
 
 async def test_ensure_act_creates_then_reuses(db_session):
-    from app.ingest.registry import NSW_ACT, ensure_act
+    from app.ingest.registry import NSW_INSTRUMENTS, ensure_act
 
-    created = await ensure_act(db_session)
-    assert created.slug == NSW_ACT["slug"]
-    again = await ensure_act(db_session)
-    assert again.id == created.id
+    for instrument in NSW_INSTRUMENTS:
+        created = await ensure_act(db_session, instrument)
+        assert created.slug == instrument["slug"]
+        again = await ensure_act(db_session, instrument)
+        assert again.id == created.id
+
+    acts = (await db_session.execute(select(Act))).scalars().all()
+    assert {act.slug for act in acts} == {"act-2010-042", "sl-2019-0629"}

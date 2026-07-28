@@ -38,7 +38,7 @@
 - Consumes: existing fetcher/parser/loader and `new_version_dates`.
 - Produces: `NSW_INSTRUMENTS: list[dict]` (Act entry first, Regulation second; keys `jurisdiction`/`slug`/`title`) and `async ensure_act(session, instrument: dict) -> Act`. Task 2 runs the CLIs this task rewires.
 
-- [ ] **Step 1: Failing test** — in `tests/test_loader.py` replace `test_ensure_act_creates_then_reuses` with:
+- [x] **Step 1: Failing test** — in `tests/test_loader.py` replace `test_ensure_act_creates_then_reuses` with:
 
 ```python
 async def test_ensure_act_creates_then_reuses(db_session):
@@ -54,9 +54,9 @@ async def test_ensure_act_creates_then_reuses(db_session):
     assert {act.slug for act in acts} == {"act-2010-042", "sl-2019-0629"}
 ```
 
-- [ ] **Step 2: Run -> fail.** `uv run pytest tests/test_loader.py -q` — ImportError (`NSW_INSTRUMENTS`).
+- [x] **Step 2: Run -> fail.** `uv run pytest tests/test_loader.py -q` — ImportError (`NSW_INSTRUMENTS`).
 
-- [ ] **Step 3: Registry** — `app/ingest/registry.py` becomes:
+- [x] **Step 3: Registry** — `app/ingest/registry.py` becomes:
 
 ```python
 from sqlalchemy import select
@@ -90,7 +90,7 @@ async def ensure_act(session, instrument: dict) -> Act:
     return act
 ```
 
-- [ ] **Step 4: Ingest CLI** — `app/ingest/__main__.py` becomes (single `asyncio.run`; fetches via `to_thread` because sync Playwright refuses to run inside the loop and a second `asyncio.run` would reuse dead-loop pooled connections):
+- [x] **Step 4: Ingest CLI** — `app/ingest/__main__.py` becomes (single `asyncio.run`; fetches via `to_thread` because sync Playwright refuses to run inside the loop and a second `asyncio.run` would reuse dead-loop pooled connections):
 
 ```python
 """Ingest each instrument's full point-in-time history: fetch, parse, load.
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 5: Monitor loop** — in `app/monitor/__main__.py`: change the registry import to `from app.ingest.registry import NSW_INSTRUMENTS, ensure_act`, and replace `refresh_corpus` and `run`'s first lines:
+- [x] **Step 5: Monitor loop** — in `app/monitor/__main__.py`: change the registry import to `from app.ingest.registry import NSW_INSTRUMENTS, ensure_act`, and replace `refresh_corpus` and `run`'s first lines:
 
 ```python
 async def refresh_corpus() -> None:
@@ -157,9 +157,7 @@ async def refresh_corpus() -> None:
             ingested = set(
                 (
                     await session.execute(
-                        select(IngestedVersion.version_date).where(
-                            IngestedVersion.act_id == act.id
-                        )
+                        select(IngestedVersion.version_date).where(IngestedVersion.act_id == act.id)
                     )
                 )
                 .scalars()
@@ -171,9 +169,7 @@ async def refresh_corpus() -> None:
                 await session.commit()
                 continue
             cache = Path("data/raw/nsw") / instrument["slug"]
-            paths = await asyncio.to_thread(
-                fetch_versions, instrument["slug"], missing, cache
-            )
+            paths = await asyncio.to_thread(fetch_versions, instrument["slug"], missing, cache)
             for path in paths:
                 version_date = date.fromisoformat(path.stem)
                 if version_date not in missing:
@@ -187,9 +183,9 @@ async def refresh_corpus() -> None:
 
 and in `run(...)` replace `NSW_ACT["jurisdiction"]` with `NSW_INSTRUMENTS[0]["jurisdiction"]`.
 
-- [ ] **Step 6: Run -> pass.** `uv run pytest tests/test_loader.py -q`, then quick CLI sanity without new fetches: `uv run python -m app.monitor nsw --skip-fetch` — expected `monitor: checked=<n> changed=0`.
+- [x] **Step 6: Run -> pass.** `uv run pytest tests/test_loader.py -q`, then quick CLI sanity without new fetches: `uv run python -m app.monitor nsw --skip-fetch` — expected `monitor: checked=<n> changed=0`.
 
-- [ ] **Step 7: Full suite; ruff; commit** (`Register the Regulation as a second instrument`); push; CI green. Report and WAIT.
+- [x] **Step 7: Full suite; ruff; commit** (`Register the Regulation as a second instrument`); push; CI green. Report and WAIT.
 
 ---
 
@@ -237,9 +233,7 @@ async def regulation_session():
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
         try:
-            act = (
-                await session.execute(select(Act).where(Act.slug == REG))
-            ).scalar_one_or_none()
+            act = (await session.execute(select(Act).where(Act.slug == REG))).scalar_one_or_none()
         except (OSError, SQLAlchemyError, asyncpg.PostgresError):
             pytest.skip("corpus store not reachable")
         if act is None:
