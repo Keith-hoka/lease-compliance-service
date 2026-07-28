@@ -30,3 +30,28 @@ Corpus pointers for future milestones: the 2025-05-19 reform touched
 cl 4, 5, 39, 40A; 2026-07-01 added 18 clauses (cl 3 definitions churn).
 Re-run the term scan after major reforms — the monitor's corpus refresh
 keeps this survey re-checkable at any time.
+
+## Mandatory-content survey (LLM clause audit, 2026-07-28)
+
+The Act states 37 sections as "a term of every residential tenancy
+agreement". Six crisply decidable, universally present ones became
+`MANDATORY_RULES` (ss 33, 50, 51, 52, 63, 70). The rest are excluded from
+v1 because presence in a lease document is situational or procedural
+rather than a universal content term:
+
+- ss 27, 34, 35, 38-40, 43, 48: money/utility mechanics often expressed
+  outside a dedicated clause (rent receipts, charge splits, rent
+  reductions) — absence is not a reliable signal.
+- ss 49, 53-59, 55A: occupation, sale, entry and access mechanics —
+  multi-section clusters; a single missing clause is not decidable.
+- ss 64, 64A, 66, 67, 71, 72: repairs/alterations/locks procedure details
+  implied by law (s 21) whether or not restated.
+- ss 73B-73I (2025 pets), 54A (DV), 74 (transfer): situational regimes.
+
+Known window gap, documented deliberately: the specified-contractor
+prohibition was prescribed by Regulation cl 5(a) from 2019-12-16 until it
+moved into Act s 19(2)(f) on 2025-05-19. The rule
+`nsw.clause.specified_contractor` cites the Act and applies from
+2025-05-19; audits as at 2019-12-16..2025-05-18 do not flag the effect
+(cl 5's current text no longer contains it, so a Regulation-cited rule
+would resolve to the wrong statutory text).
