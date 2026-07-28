@@ -5,7 +5,13 @@ from pydantic import ValidationError
 
 from app.clause_audit.document import DocumentInput
 from app.llm.client import build_parse_kwargs, document_block
-from app.llm.prompts import SYSTEM, clause_instruction, fields_instruction
+from app.llm.prompts import (
+    MANDATORY_GUIDANCE,
+    PROHIBITED_GUIDANCE,
+    SYSTEM,
+    clause_instruction,
+    fields_instruction,
+)
 from app.llm.schemas import FieldsOutput, family_output_model
 
 IDS = ["nsw.clause.carpet_cleaning", "nsw.clause.fumigation"]
@@ -72,17 +78,25 @@ def test_build_parse_kwargs_shape():
     assert content[1] == {"type": "text", "text": "judge these rules"}
 
 
-def test_clause_instruction_embeds_statute_and_rules():
+def test_clause_instruction_embeds_statute_rules_and_guidance():
     text = clause_instruction(
         "prohibited terms",
         date(2026, 7, 28),
         {("act-2010-042", "19"): "Prohibited terms\n(2) Terms having the following effects..."},
         [("nsw.clause.carpet_cleaning", "A term requiring professional carpet cleaning.")],
+        PROHIBITED_GUIDANCE,
     )
     assert "2026-07-28" in text
     assert "Prohibited terms" in text
     assert "nsw.clause.carpet_cleaning" in text
     assert "act-2010-042 s 19" in text
+    assert "prohibited effect is present" in text
+
+
+def test_family_guidance_defines_verdicts_distinctly():
+    assert "absent" in MANDATORY_GUIDANCE
+    assert "independently" in MANDATORY_GUIDANCE
+    assert "offending text" in PROHIBITED_GUIDANCE
 
 
 def test_fields_instruction_lists_every_field():

@@ -75,3 +75,14 @@ async def test_statutory_texts_dedupes_shared_sections(corpus_session):
     refs = {(r.ref.act_slug, r.ref.section_no) for r in PROHIBITED_RULES}
     assert set(texts) == refs
     assert "Prohibited terms" in texts[("act-2010-042", "19")]
+
+
+def test_golden_covers_every_clause_rule():
+    from tests.golden.clauses import MANDATORY_CASES, PROHIBITED_CASES
+
+    covered = {c.rule_id for c in PROHIBITED_CASES}
+    assert covered == {r.rule_id for r in PROHIBITED_RULES}
+    mandatory_covered = {c.rule_id for c in MANDATORY_CASES}
+    assert mandatory_covered == {r.rule_id for r in MANDATORY_RULES}
+    for case in PROHIBITED_CASES + MANDATORY_CASES:
+        assert case.expected in ("red", "green")

@@ -33,3 +33,5 @@ line-length = 100
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = ["llm_eval: real-model eval; costs money, run explicitly with -m llm_eval"]
+addopts = "-m 'not llm_eval'"
