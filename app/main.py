@@ -44,9 +44,12 @@ app.include_router(clause_audits_router)
 app.include_router(legislation_router)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health(session: Annotated[AsyncSession, Depends(get_session)]) -> dict:
-    """Liveness plus the cheapest dead-worker detector: the pending queue."""
+    """Liveness plus the cheapest dead-worker detector: the pending queue.
+
+    HEAD is allowed because uptime monitors probe with it.
+    """
     count, oldest = (
         await session.execute(
             select(func.count(), func.min(ClauseAuditJob.created_at)).where(

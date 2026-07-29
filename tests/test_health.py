@@ -11,6 +11,12 @@ async def test_health_with_empty_queue(client):
     assert body["clause_audit"] == {"pending": 0, "oldest_pending_seconds": None}
 
 
+async def test_health_answers_head_requests(client):
+    """Uptime monitors on free tiers probe with HEAD, not GET."""
+    response = await client.head("/health")
+    assert response.status_code == 200
+
+
 async def test_health_reports_pending_queue(client, db_session):
     old = ClauseAuditJob(
         client_id="testco",
