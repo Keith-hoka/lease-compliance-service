@@ -30,5 +30,12 @@ cost at equal measured quality on this suite, and faster.
   without thinking is the weakest configuration. Revisit only under real
   cost pressure.
 - **Non-Anthropic candidates** (OpenAI mini-class, DeepSeek) — need a
-  different client implementation; the harness itself is model-agnostic,
-  so wire an adapter first if ever pursued.
+  different client implementation; the harness itself is model-agnostic.
+  **Planned milestone (provider failover):** a provider adapter behind
+  the judge interface, eval-gated like any model change, giving true
+  provider-level redundancy (an Anthropic-wide outage takes out Opus and
+  Sonnet alike) plus a wider cost sweep. Decision 2026-07-29: no
+  intra-Anthropic auto-fallback in the meantime — a Sonnet incident is
+  handled by the existing failure semantics (job fails fast, manager
+  notified, retry button) or the one-line `CLAUSE_AUDIT_MODEL` switch to
+  the already-eval-passed Opus.
