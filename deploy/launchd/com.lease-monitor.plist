@@ -6,12 +6,8 @@
     <string>com.lease-monitor</string>
     <key>ProgramArguments</key>
     <array>
-        <string>__UV__</string>
-        <string>run</string>
-        <string>python</string>
-        <string>-m</string>
-        <string>app.monitor</string>
-        <string>nsw</string>
+        <string>/bin/bash</string>
+        <string>__REPO_DIR__/deploy/launchd/monitor-remote.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>__REPO_DIR__</string>
@@ -26,6 +22,10 @@
     <dict>
         <key>PATH</key>
         <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LEASE_DB_SERVER</key>
+        <string>__SERVER__</string>
+        <key>DATABASE_URL</key>
+        <string>__REMOTE_DATABASE_URL__</string>
     </dict>
     <key>StandardOutPath</key>
     <string>__HOME__/Library/Logs/lease-monitor.log</string>
