@@ -158,3 +158,66 @@ async def usage_lines(session: AsyncSession, client_id: str, days: int) -> list[
         .all()
     )
     return [f"{r.day} {r.endpoint_class:14} {r.count}" for r in rows]
+
+
+async def tenant_info(session: AsyncSession, client_id: str) -> dict:
+    """Tenant row, its keys, and today's usage as a JSON-ready dict."""
+    tenant = await _tenant_by_client_id(session, client_id)
+    keys = (
+        (await session.execute(select(ApiKey).where(ApiKey.tenant_id == tenant.id))).scalars().all()
+    )
+    today = datetime.now(UTC).date()
+    counters = (
+        (
+            await session.execute(
+                select(UsageCounter).where(
+                    UsageCounter.tenant_id == tenant.id, UsageCounter.day == today
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_class = {c.endpoint_class: c.count for c in counters}
+    return {
+        "client_id": tenant.client_id,
+        "name": tenant.name,
+        "status": tenant.status,
+        "rpm_limit": tenant.rpm_limit,
+        "clause_audits_per_day": tenant.clause_audits_per_day,
+        "keys": [
+            {
+                "prefix": k.prefix,
+                "status": k.status,
+                "created_at": k.created_at.isoformat(),
+                "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
+            }
+            for k in keys
+        ],
+        "today": {
+            "audit": by_class.get("audit", 0),
+            "clause_audit": by_class.get("clause_audit", 0),
+            "legislation": by_class.get("legislation", 0),
+        },
+    }
+
+
+async def usage_rows(session: AsyncSession, client_id: str, days: int) -> list[dict]:
+    """Daily usage counters for the last N days as JSON-ready dicts."""
+    tenant = await _tenant_by_client_id(session, client_id)
+    since = datetime.now(UTC).date() - timedelta(days=days)
+    rows = (
+        (
+            await session.execute(
+                select(UsageCounter)
+                .where(UsageCounter.tenant_id == tenant.id, UsageCounter.day >= since)
+                .order_by(UsageCounter.day, UsageCounter.endpoint_class)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {"day": r.day.isoformat(), "endpoint_class": r.endpoint_class, "count": r.count}
+        for r in rows
+    ]

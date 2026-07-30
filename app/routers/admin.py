@@ -7,7 +7,15 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.db import get_session
-from app.tenants import create_tenant, new_key, revoke_key
+from app.tenants import (
+    create_tenant,
+    new_key,
+    revoke_key,
+    set_limits,
+    set_status,
+    tenant_info,
+    usage_rows,
+)
 
 router = APIRouter(prefix="/admin")
 
@@ -56,3 +64,38 @@ async def admin_revoke_key(prefix: str, session=SessionDep) -> None:
     except ValueError as exc:
         status = 409 if "multiple" in str(exc) else 404
         raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+
+class TenantPatch(BaseModel):
+    rpm: int | None = None
+    clause_per_day: int | None = None
+    status: str | None = None
+
+
+@router.patch("/tenants/{client_id}", dependencies=[AdminDep])
+async def admin_patch_tenant(client_id: str, body: TenantPatch, session=SessionDep) -> dict:
+    try:
+        if body.rpm is not None or body.clause_per_day is not None:
+            await set_limits(session, client_id, body.rpm, body.clause_per_day)
+        if body.status is not None:
+            await set_status(session, client_id, body.status)
+    except ValueError as exc:
+        status = 404 if "not found" in str(exc) else 422
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    return {"client_id": client_id}
+
+
+@router.get("/tenants/{client_id}", dependencies=[AdminDep])
+async def admin_tenant_info(client_id: str, session=SessionDep) -> dict:
+    try:
+        return await tenant_info(session, client_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/tenants/{client_id}/usage", dependencies=[AdminDep])
+async def admin_usage(client_id: str, days: int = 30, session=SessionDep) -> list[dict]:
+    try:
+        return await usage_rows(session, client_id, days)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
