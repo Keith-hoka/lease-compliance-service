@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     api_keys: str = ""
     anthropic_api_key: str = ""
     clause_audit_model: str = "claude-sonnet-5"
+    admin_api_key: str = ""
 
 
 settings = Settings()
