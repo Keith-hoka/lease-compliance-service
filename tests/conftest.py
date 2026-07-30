@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core.auth import clear_auth_cache
 from app.core.db import Base, get_session
 from app.core.keys import hash_key, key_prefix
+from app.core.ratelimit import clear_buckets
 from app.main import app
 from app.models import ApiKey, Tenant
 
@@ -68,8 +69,10 @@ def fake_judge():
 @pytest.fixture(autouse=True)
 def reset_tenant_state():
     clear_auth_cache()
+    clear_buckets()
     yield
     clear_auth_cache()
+    clear_buckets()
 
 
 @pytest.fixture

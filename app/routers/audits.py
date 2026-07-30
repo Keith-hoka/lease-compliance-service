@@ -8,12 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import require_api_key
 from app.core.dates import sydney_today
 from app.core.db import get_session
+from app.core.ratelimit import enforce_rate_limit
 from app.models import Audit
 from app.rules import ENGINE_VERSION
 from app.rules.engine import run_audit
 from app.schemas.audit import AuditCreate, AuditInfo
 
-router = APIRouter(prefix="/v1")
+router = APIRouter(prefix="/v1", dependencies=[Depends(enforce_rate_limit)])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 ClientDep = Annotated[str, Depends(require_api_key)]

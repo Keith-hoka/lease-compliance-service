@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import require_api_key
 from app.core.db import get_session
+from app.core.ratelimit import enforce_rate_limit
 from app.services.legislation import section_at
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1", dependencies=[Depends(enforce_rate_limit)])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 

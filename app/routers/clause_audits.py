@@ -10,11 +10,12 @@ from app.core.auth import require_api_key
 from app.core.config import clause_audit_enabled, settings
 from app.core.dates import sydney_today
 from app.core.db import get_session
+from app.core.ratelimit import enforce_rate_limit
 from app.models import ClauseAuditJob
 from app.rules import ENGINE_VERSION
 from app.schemas.clause_audit import ClauseAuditCreate, ClauseAuditInfo
 
-router = APIRouter(prefix="/v1")
+router = APIRouter(prefix="/v1", dependencies=[Depends(enforce_rate_limit)])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 ClientDep = Annotated[str, Depends(require_api_key)]
