@@ -127,9 +127,7 @@ class Tenant(Base):
     status: Mapped[str] = mapped_column(Text, default="active")
     rpm_limit: Mapped[int] = mapped_column(Integer, default=60)
     clause_audits_per_day: Mapped[int] = mapped_column(Integer, default=10)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ApiKey(Base):
@@ -140,20 +138,14 @@ class ApiKey(Base):
     key_hash: Mapped[str] = mapped_column(Text, unique=True)
     prefix: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, default="active")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class UsageCounter(Base):
     __tablename__ = "usage_counters"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id"), primary_key=True
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), primary_key=True)
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     endpoint_class: Mapped[str] = mapped_column(Text, primary_key=True)
     count: Mapped[int] = mapped_column(Integer, default=0)
@@ -227,9 +219,7 @@ def upgrade() -> None:
     op.create_table(
         "api_keys",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column(
-            "tenant_id", sa.Uuid(), sa.ForeignKey("tenants.id"), nullable=False
-        ),
+        sa.Column("tenant_id", sa.Uuid(), sa.ForeignKey("tenants.id"), nullable=False),
         sa.Column("key_hash", sa.Text(), nullable=False, unique=True),
         sa.Column("prefix", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
@@ -243,9 +233,7 @@ def upgrade() -> None:
     )
     op.create_table(
         "usage_counters",
-        sa.Column(
-            "tenant_id", sa.Uuid(), sa.ForeignKey("tenants.id"), primary_key=True
-        ),
+        sa.Column("tenant_id", sa.Uuid(), sa.ForeignKey("tenants.id"), primary_key=True),
         sa.Column("day", sa.Date(), primary_key=True),
         sa.Column("endpoint_class", sa.Text(), primary_key=True),
         sa.Column("count", sa.Integer(), nullable=False),
@@ -360,9 +348,7 @@ async def api(client, seeded_tenants):
 
 
 async def test_valid_key_reaches_endpoint(api):
-    response = await api.get(
-        "/v1/audit-changes", headers={"X-API-Key": "test-key"}
-    )
+    response = await api.get("/v1/audit-changes", headers={"X-API-Key": "test-key"})
     assert response.status_code == 200
 
 
@@ -472,9 +458,7 @@ async def require_tenant(
             raise HTTPException(status_code=401, detail="Invalid API key")
         api_key, tenant = row
         await session.execute(
-            update(ApiKey)
-            .where(ApiKey.id == api_key.id)
-            .values(last_used_at=time_now())
+            update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=time_now())
         )
         await session.commit()
         ctx = TenantContext(
@@ -602,9 +586,7 @@ def test_wait_hint_is_time_until_next_token():
     assert wait == 2.0
 
 
-async def test_over_limit_request_gets_429_with_retry_after(
-    client, seeded_tenants, db_session
-):
+async def test_over_limit_request_gets_429_with_retry_after(client, seeded_tenants, db_session):
     from app.models import Tenant
 
     tenant = await db_session.get(Tenant, seeded_tenants["testco"].id)
@@ -776,9 +758,7 @@ async def keys(seeded_tenants):
 
 async def _counters(db_session, tenant_id):
     rows = (
-        await db_session.execute(
-            select(UsageCounter).where(UsageCounter.tenant_id == tenant_id)
-        )
+        await db_session.execute(select(UsageCounter).where(UsageCounter.tenant_id == tenant_id))
     ).scalars()
     return {(c.day, c.endpoint_class): c.count for c in rows}
 
@@ -789,9 +769,7 @@ async def test_deterministic_audit_counts_once(client, seeded_tenants, db_sessio
         "lease": {"rent_amount": "600", "rent_frequency": "weekly"},
     }
     for _ in range(2):
-        response = await client.post(
-            "/v1/audits", json=body, headers={"X-API-Key": "test-key"}
-        )
+        response = await client.post("/v1/audits", json=body, headers={"X-API-Key": "test-key"})
         assert response.status_code == 201
     counters = await _counters(db_session, seeded_tenants["testco"].id)
     today = datetime.now(UTC).date()
@@ -825,13 +803,9 @@ async def test_clause_post_counts_and_daily_quota_blocks(
     data = {"payload": '{"jurisdiction": "NSW"}'}
     headers = {"X-API-Key": "test-key"}
 
-    first = await client.post(
-        "/v1/clause-audits", data=data, files=files, headers=headers
-    )
+    first = await client.post("/v1/clause-audits", data=data, files=files, headers=headers)
     assert first.status_code == 202
-    second = await client.post(
-        "/v1/clause-audits", data=data, files=files, headers=headers
-    )
+    second = await client.post("/v1/clause-audits", data=data, files=files, headers=headers)
     assert second.status_code == 429
     assert "quota" in second.json()["detail"].lower()
     assert "utc" in second.json()["detail"].lower()
@@ -873,9 +847,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import UsageCounter
 
 
-async def record_usage(
-    session: AsyncSession, tenant_id: uuid.UUID, endpoint_class: str
-) -> None:
+async def record_usage(session: AsyncSession, tenant_id: uuid.UUID, endpoint_class: str) -> None:
     stmt = insert(UsageCounter).values(
         tenant_id=tenant_id,
         day=datetime.now(UTC).date(),
@@ -1090,9 +1062,7 @@ async def test_import_env_keys_is_idempotent(db_session, monkeypatch):
     assert first == 1
     assert second == 0
     tenant = (
-        await db_session.execute(
-            select(Tenant).where(Tenant.client_id == "rentalapp")
-        )
+        await db_session.execute(select(Tenant).where(Tenant.client_id == "rentalapp"))
     ).scalar_one()
     assert tenant.status == "active"
 
@@ -1150,9 +1120,7 @@ async def create_tenant(
     session.add(tenant)
     await session.flush()
     key = generate_key()
-    session.add(
-        ApiKey(tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key))
-    )
+    session.add(ApiKey(tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key)))
     await session.commit()
     return key
 
@@ -1160,9 +1128,7 @@ async def create_tenant(
 async def new_key(session: AsyncSession, client_id: str) -> str:
     tenant = await _tenant_by_client_id(session, client_id)
     key = generate_key()
-    session.add(
-        ApiKey(tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key))
-    )
+    session.add(ApiKey(tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key)))
     await session.commit()
     return key
 
@@ -1207,9 +1173,7 @@ async def import_env_keys(session: AsyncSession) -> int:
         if not key or not client_id:
             continue
         exists = (
-            await session.execute(
-                select(ApiKey).where(ApiKey.key_hash == hash_key(key))
-            )
+            await session.execute(select(ApiKey).where(ApiKey.key_hash == hash_key(key)))
         ).scalar_one_or_none()
         if exists is not None:
             continue
@@ -1220,11 +1184,7 @@ async def import_env_keys(session: AsyncSession) -> int:
             tenant = Tenant(client_id=client_id, name=client_id)
             session.add(tenant)
             await session.flush()
-        session.add(
-            ApiKey(
-                tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key)
-            )
-        )
+        session.add(ApiKey(tenant_id=tenant.id, key_hash=hash_key(key), prefix=key_prefix(key)))
         imported += 1
     await session.commit()
     return imported
@@ -1265,10 +1225,10 @@ async def _list_tenants() -> None:
         tenants = (await session.execute(select(Tenant))).scalars().all()
         today = datetime.now(UTC).date()
         counters = (
-            await session.execute(
-                select(UsageCounter).where(UsageCounter.day == today)
-            )
-        ).scalars().all()
+            (await session.execute(select(UsageCounter).where(UsageCounter.day == today)))
+            .scalars()
+            .all()
+        )
         by_tenant: dict = {}
         for c in counters:
             by_tenant.setdefault(c.tenant_id, {})[c.endpoint_class] = c.count
@@ -1287,12 +1247,16 @@ async def _usage(client_id: str, days: int) -> None:
         ).scalar_one()
         since = datetime.now(UTC).date() - timedelta(days=days)
         rows = (
-            await session.execute(
-                select(UsageCounter)
-                .where(UsageCounter.tenant_id == tenant.id, UsageCounter.day >= since)
-                .order_by(UsageCounter.day, UsageCounter.endpoint_class)
+            (
+                await session.execute(
+                    select(UsageCounter)
+                    .where(UsageCounter.tenant_id == tenant.id, UsageCounter.day >= since)
+                    .order_by(UsageCounter.day, UsageCounter.endpoint_class)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for r in rows:
             print(f"{r.day} {r.endpoint_class:14} {r.count}")
 
@@ -1387,13 +1351,11 @@ from app.tenants import import_env_keys
 and at the top of `lifespan`, after `configure_logging()`:
 
 ```python
-    if settings.api_keys:
-        async with async_session_factory() as session:
-            imported = await import_env_keys(session)
-        if imported:
-            logging.getLogger(__name__).info(
-                "imported %d api keys from env", imported
-            )
+if settings.api_keys:
+    async with async_session_factory() as session:
+        imported = await import_env_keys(session)
+    if imported:
+        logging.getLogger(__name__).info("imported %d api keys from env", imported)
 ```
 
 - [ ] **Step 7: Document server usage**
