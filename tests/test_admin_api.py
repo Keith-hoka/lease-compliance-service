@@ -120,3 +120,9 @@ async def test_usage_rows(client, db_session):
     assert rows == [
         {"day": datetime.now(UTC).date().isoformat(), "endpoint_class": "audit", "count": 4}
     ]
+
+
+async def test_empty_patch_is_422(client):
+    await client.post("/admin/tenants", json={"client_id": "acme"}, headers=ADMIN)
+    assert (await client.patch("/admin/tenants/acme", json={}, headers=ADMIN)).status_code == 422
+    assert (await client.patch("/admin/tenants/ghost", json={}, headers=ADMIN)).status_code == 422

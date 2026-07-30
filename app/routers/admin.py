@@ -74,6 +74,8 @@ class TenantPatch(BaseModel):
 
 @router.patch("/tenants/{client_id}", dependencies=[AdminDep])
 async def admin_patch_tenant(client_id: str, body: TenantPatch, session=SessionDep) -> dict:
+    if body.rpm is None and body.clause_per_day is None and body.status is None:
+        raise HTTPException(status_code=422, detail="Provide at least one field to update")
     try:
         if body.rpm is not None or body.clause_per_day is not None:
             await set_limits(session, client_id, body.rpm, body.clause_per_day)
