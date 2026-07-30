@@ -18,6 +18,21 @@ From the repo root on the Mac (`LEASE_DEPLOY_SERVER` and
 Migrations run on every deploy (upgrade only). Rolling back a schema
 change is a manual decision - restore a backup or write a down migration.
 
+## Tenants
+
+All tenant administration runs on the droplet:
+
+```bash
+ssh "$LEASE_DEPLOY_SERVER" "cd /opt/lease-compliance \
+  && docker compose exec api uv run python -m app.tenants list"
+```
+
+Commands: `create <client_id> --name NAME [--rpm N] [--clause-per-day N]`,
+`new-key <client_id>`, `revoke-key <prefix>`, `suspend`/`activate
+<client_id>`, `set-limits <client_id> --rpm N --clause-per-day N`,
+`usage <client_id> --days 30`, `import-env-keys`. `create` and `new-key`
+print the plaintext key once; it is never stored or shown again.
+
 ## Corpus (runs on the Mac, never the server)
 
 Tunnel + full ingest (the initial load hits the `data/raw` cache):
