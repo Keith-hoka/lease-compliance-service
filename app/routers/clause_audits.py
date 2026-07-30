@@ -1,5 +1,6 @@
+import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -25,6 +26,16 @@ ClientDep = Annotated[str, Depends(require_api_key)]
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_TEXT_CHARS = 200_000
 MAX_IN_FLIGHT_PER_TENANT = 10
+
+_tenant_locks: dict[uuid.UUID, asyncio.Lock] = {}
+
+
+def _tenant_lock(tenant_id: uuid.UUID) -> asyncio.Lock:
+    """Serialise quota check and job insert per tenant (single process)."""
+    lock = _tenant_locks.get(tenant_id)
+    if lock is None:
+        lock = _tenant_locks[tenant_id] = asyncio.Lock()
+    return lock
 
 
 def _info(job: ClauseAuditJob) -> ClauseAuditInfo:
@@ -60,37 +71,6 @@ async def create_clause_audit(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if (file is None) == (text is None):
         raise HTTPException(status_code=422, detail="Provide exactly one of file or text")
-    in_flight = (
-        await session.execute(
-            select(func.count())
-            .select_from(ClauseAuditJob)
-            .where(
-                ClauseAuditJob.client_id == tenant.client_id,
-                ClauseAuditJob.status.in_(("pending", "running")),
-            )
-        )
-    ).scalar_one()
-    if in_flight >= MAX_IN_FLIGHT_PER_TENANT:
-        raise HTTPException(status_code=429, detail="Too many clause audits in flight")
-    midnight_utc = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_count = (
-        await session.execute(
-            select(func.count())
-            .select_from(ClauseAuditJob)
-            .where(
-                ClauseAuditJob.client_id == tenant.client_id,
-                ClauseAuditJob.created_at >= midnight_utc,
-            )
-        )
-    ).scalar_one()
-    if today_count >= tenant.clause_audits_per_day:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                f"Daily clause audit quota of {tenant.clause_audits_per_day} "
-                "reached; resets at midnight UTC"
-            ),
-        )
     if text is not None:
         if len(text) > MAX_TEXT_CHARS:
             raise HTTPException(status_code=413, detail="Text too large")
@@ -102,20 +82,55 @@ async def create_clause_audit(
         if len(document) > MAX_PDF_BYTES:
             raise HTTPException(status_code=413, detail="File too large")
         kind = "pdf"
-    job = ClauseAuditJob(
-        client_id=tenant.client_id,
-        client_ref=body.client_ref,
-        jurisdiction=body.jurisdiction,
-        as_at=body.as_at or sydney_today(),
-        document=document,
-        document_kind=kind,
-        lease=body.lease.model_dump(mode="json") if body.lease else None,
-        engine_version=ENGINE_VERSION,
-        model=settings.clause_audit_model,
-    )
-    session.add(job)
-    await record_usage(session, tenant.tenant_id, "clause_audit")
-    await session.commit()
+    async with _tenant_lock(tenant.tenant_id):
+        in_flight = (
+            await session.execute(
+                select(func.count())
+                .select_from(ClauseAuditJob)
+                .where(
+                    ClauseAuditJob.client_id == tenant.client_id,
+                    ClauseAuditJob.status.in_(("pending", "running")),
+                )
+            )
+        ).scalar_one()
+        if in_flight >= MAX_IN_FLIGHT_PER_TENANT:
+            raise HTTPException(status_code=429, detail="Too many clause audits in flight")
+        now = datetime.now(UTC)
+        midnight_utc = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(ClauseAuditJob)
+                .where(
+                    ClauseAuditJob.client_id == tenant.client_id,
+                    ClauseAuditJob.created_at >= midnight_utc,
+                )
+            )
+        ).scalar_one()
+        if today_count >= tenant.clause_audits_per_day:
+            seconds_to_reset = int((midnight_utc + timedelta(days=1) - now).total_seconds())
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Daily clause audit quota of {tenant.clause_audits_per_day} "
+                    "reached; resets at midnight UTC"
+                ),
+                headers={"Retry-After": str(seconds_to_reset)},
+            )
+        job = ClauseAuditJob(
+            client_id=tenant.client_id,
+            client_ref=body.client_ref,
+            jurisdiction=body.jurisdiction,
+            as_at=body.as_at or sydney_today(),
+            document=document,
+            document_kind=kind,
+            lease=body.lease.model_dump(mode="json") if body.lease else None,
+            engine_version=ENGINE_VERSION,
+            model=settings.clause_audit_model,
+        )
+        session.add(job)
+        await record_usage(session, tenant.tenant_id, "clause_audit")
+        await session.commit()
     await session.refresh(job)
     return _info(job)
 

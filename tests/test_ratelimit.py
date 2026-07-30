@@ -50,3 +50,24 @@ async def test_over_limit_request_gets_429_with_retry_after(client, seeded_tenan
     third = await client.get("/v1/audit-changes", headers=headers)
     assert third.status_code == 429
     assert "Retry-After" in third.headers
+
+
+async def test_bucket_rebuilds_when_limit_changes(client, seeded_tenants, db_session):
+    from app.core.auth import clear_auth_cache
+    from app.models import Tenant
+
+    tenant = await db_session.get(Tenant, seeded_tenants["testco"].id)
+    tenant.rpm_limit = 2
+    await db_session.commit()
+
+    headers = {"X-API-Key": "test-key"}
+    await client.get("/v1/audit-changes", headers=headers)
+    await client.get("/v1/audit-changes", headers=headers)
+    blocked = await client.get("/v1/audit-changes", headers=headers)
+    assert blocked.status_code == 429
+
+    tenant.rpm_limit = 5
+    await db_session.commit()
+    clear_auth_cache()
+    allowed = await client.get("/v1/audit-changes", headers=headers)
+    assert allowed.status_code == 200

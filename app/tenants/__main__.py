@@ -2,12 +2,9 @@
 
 import argparse
 import asyncio
-from datetime import UTC, datetime, timedelta
-
-from sqlalchemy import select
+import sys
 
 from app.core.db import async_session_factory
-from app.models import Tenant, UsageCounter
 from app.tenants import (
     create_tenant,
     import_env_keys,
@@ -15,48 +12,9 @@ from app.tenants import (
     revoke_key,
     set_limits,
     set_status,
+    tenant_lines,
+    usage_lines,
 )
-
-
-async def _list_tenants() -> None:
-    async with async_session_factory() as session:
-        tenants = (await session.execute(select(Tenant))).scalars().all()
-        today = datetime.now(UTC).date()
-        counters = (
-            (await session.execute(select(UsageCounter).where(UsageCounter.day == today)))
-            .scalars()
-            .all()
-        )
-        by_tenant: dict = {}
-        for c in counters:
-            by_tenant.setdefault(c.tenant_id, {})[c.endpoint_class] = c.count
-        for t in tenants:
-            usage = by_tenant.get(t.id, {})
-            print(
-                f"{t.client_id:20} {t.status:10} rpm={t.rpm_limit:<5} "
-                f"clause/day={t.clause_audits_per_day:<5} today={usage or '-'}"
-            )
-
-
-async def _usage(client_id: str, days: int) -> None:
-    async with async_session_factory() as session:
-        tenant = (
-            await session.execute(select(Tenant).where(Tenant.client_id == client_id))
-        ).scalar_one()
-        since = datetime.now(UTC).date() - timedelta(days=days)
-        rows = (
-            (
-                await session.execute(
-                    select(UsageCounter)
-                    .where(UsageCounter.tenant_id == tenant.id, UsageCounter.day >= since)
-                    .order_by(UsageCounter.day, UsageCounter.endpoint_class)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        for r in rows:
-            print(f"{r.day} {r.endpoint_class:14} {r.count}")
 
 
 async def _run(args: argparse.Namespace) -> None:
@@ -85,6 +43,12 @@ async def _run(args: argparse.Namespace) -> None:
         elif args.command == "import-env-keys":
             count = await import_env_keys(session)
             print(f"imported {count} keys")
+        elif args.command == "list":
+            for line in await tenant_lines(session):
+                print(line)
+        elif args.command == "usage":
+            for line in await usage_lines(session, args.client_id, args.days):
+                print(line)
 
 
 def main() -> None:
@@ -120,12 +84,12 @@ def main() -> None:
     usage.add_argument("--days", type=int, default=30)
 
     args = parser.parse_args()
-    if args.command == "list":
-        asyncio.run(_list_tenants())
-    elif args.command == "usage":
-        asyncio.run(_usage(args.client_id, args.days))
-    else:
+    try:
         asyncio.run(_run(args))
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
-main()
+if __name__ == "__main__":
+    main()
