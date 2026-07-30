@@ -24,8 +24,11 @@ All tenant administration runs on the droplet:
 
 ```bash
 ssh "$LEASE_DEPLOY_SERVER" "cd /opt/lease-compliance \
-  && docker compose exec api uv run python -m app.tenants list"
+  && docker compose exec api uv run --no-sync python -m app.tenants list"
 ```
+
+(`--no-sync` matters: without it uv installs dev dependencies into the
+container.)
 
 Commands: `create <client_id> --name NAME [--rpm N] [--clause-per-day N]`,
 `new-key <client_id>`, `revoke-key <prefix>`, `suspend`/`activate
