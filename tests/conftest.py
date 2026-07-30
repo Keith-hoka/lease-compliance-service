@@ -4,8 +4,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.core.auth import clear_auth_cache
 from app.core.db import Base, get_session
+from app.core.keys import hash_key, key_prefix
 from app.main import app
+from app.models import ApiKey, Tenant
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -60,3 +63,36 @@ class FakeJudge:
 @pytest.fixture
 def fake_judge():
     return FakeJudge()
+
+
+@pytest.fixture(autouse=True)
+def reset_tenant_state():
+    clear_auth_cache()
+    yield
+    clear_auth_cache()
+
+
+@pytest.fixture
+async def seeded_tenants(db_engine):
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with factory() as session:
+        testco = Tenant(client_id="testco", name="Test Co")
+        otherco = Tenant(client_id="otherco", name="Other Co")
+        session.add_all([testco, otherco])
+        await session.flush()
+        session.add_all(
+            [
+                ApiKey(
+                    tenant_id=testco.id,
+                    key_hash=hash_key("test-key"),
+                    prefix=key_prefix("test-key"),
+                ),
+                ApiKey(
+                    tenant_id=otherco.id,
+                    key_hash=hash_key("other-key"),
+                    prefix=key_prefix("other-key"),
+                ),
+            ]
+        )
+        await session.commit()
+        return {"testco": testco, "otherco": otherco}

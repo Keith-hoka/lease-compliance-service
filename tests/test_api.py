@@ -2,7 +2,6 @@ from datetime import date
 
 import pytest
 
-from app.core.config import settings
 from app.ingest.loader import load_version
 from app.ingest.parser import ParsedSection
 from app.models import Act, Audit
@@ -11,8 +10,8 @@ KEY = {"X-API-Key": "test-key"}
 
 
 @pytest.fixture(autouse=True)
-def api_key(monkeypatch):
-    monkeypatch.setattr(settings, "api_keys", "test-key:testco,other-key:otherco")
+async def api_key(seeded_tenants):
+    """All API tests in this file run against the seeded testco/otherco tenants."""
 
 
 @pytest.fixture

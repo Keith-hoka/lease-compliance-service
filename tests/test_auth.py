@@ -1,35 +1,45 @@
 import pytest
-from fastapi import HTTPException
+from sqlalchemy import update
 
-from app.core.auth import require_api_key
-from app.core.config import settings
-
-
-@pytest.fixture(autouse=True)
-def keys(monkeypatch):
-    monkeypatch.setattr(settings, "api_keys", "abc123:rentalapp, xyz789:acme")
+from app.core.auth import clear_auth_cache
+from app.models import ApiKey, Tenant
 
 
-def test_valid_key_returns_client_id():
-    assert require_api_key("abc123") == "rentalapp"
+@pytest.fixture
+async def api(client, seeded_tenants):
+    return client
 
 
-def test_second_key_maps_to_its_tenant():
-    assert require_api_key("xyz789") == "acme"
+async def test_valid_key_reaches_endpoint(api):
+    response = await api.get("/v1/audit-changes", headers={"X-API-Key": "test-key"})
+    assert response.status_code == 200
 
 
-def test_unknown_key_is_401():
-    with pytest.raises(HTTPException) as excinfo:
-        require_api_key("nope")
-    assert excinfo.value.status_code == 401
+async def test_unknown_key_is_401(api):
+    response = await api.get("/v1/audit-changes", headers={"X-API-Key": "nope"})
+    assert response.status_code == 401
 
 
-def test_missing_key_is_401():
-    with pytest.raises(HTTPException):
-        require_api_key("")
+async def test_missing_key_is_401(api):
+    response = await api.get("/v1/audit-changes")
+    assert response.status_code == 401
 
 
-def test_unlabelled_entry_is_unusable(monkeypatch):
-    monkeypatch.setattr(settings, "api_keys", "bare-key")
-    with pytest.raises(HTTPException):
-        require_api_key("bare-key")
+async def test_suspended_tenant_is_403(api, seeded_tenants, db_session):
+    tenant = await db_session.get(Tenant, seeded_tenants["testco"].id)
+    tenant.status = "suspended"
+    await db_session.commit()
+    clear_auth_cache()
+    response = await api.get("/v1/audit-changes", headers={"X-API-Key": "test-key"})
+    assert response.status_code == 403
+
+
+async def test_revoked_key_is_401_after_cache_clear(api, db_session):
+    ok = await api.get("/v1/audit-changes", headers={"X-API-Key": "test-key"})
+    assert ok.status_code == 200
+
+    await db_session.execute(update(ApiKey).values(status="revoked"))
+    await db_session.commit()
+    clear_auth_cache()
+    response = await api.get("/v1/audit-changes", headers={"X-API-Key": "test-key"})
+    assert response.status_code == 401

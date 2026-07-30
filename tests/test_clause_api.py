@@ -13,8 +13,8 @@ PAYLOAD = json.dumps({"jurisdiction": "NSW", "client_ref": "lease-9"})
 
 
 @pytest.fixture(autouse=True)
-def api_key(monkeypatch):
-    monkeypatch.setattr(settings, "api_keys", "test-key:testco,other-key:otherco")
+async def api_key(seeded_tenants, monkeypatch):
+    """Seeded tenants plus a configured anthropic key."""
     monkeypatch.setattr(settings, "anthropic_api_key", "unit-test-key")
 
 
