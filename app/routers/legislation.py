@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import TenantDep
 from app.core.db import get_session
 from app.core.ratelimit import enforce_rate_limit
+from app.core.usage import record_usage
 from app.services.legislation import section_at
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(enforce_rate_limit)])
@@ -25,10 +27,14 @@ class SectionInfo(BaseModel):
 
 
 @router.get("/legislation/sections", response_model=SectionInfo)
-async def get_section(act: str, section_no: str, as_at: date, session: SessionDep) -> SectionInfo:
+async def get_section(
+    act: str, section_no: str, as_at: date, tenant: TenantDep, session: SessionDep
+) -> SectionInfo:
     section = await section_at(session, act, section_no, as_at)
     if section is None:
         raise HTTPException(status_code=404, detail="Section not in force at that date")
+    await record_usage(session, tenant.tenant_id, "legislation")
+    await session.commit()
     return SectionInfo(
         section_no=section.section_no,
         heading=section.heading,

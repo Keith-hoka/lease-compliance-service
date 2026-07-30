@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import require_api_key
+from app.core.auth import TenantDep, require_api_key
 from app.core.dates import sydney_today
 from app.core.db import get_session
 from app.core.ratelimit import enforce_rate_limit
+from app.core.usage import record_usage
 from app.models import Audit
 from app.rules import ENGINE_VERSION
 from app.rules.engine import run_audit
@@ -21,7 +22,7 @@ ClientDep = Annotated[str, Depends(require_api_key)]
 
 
 @router.post("/audits", status_code=201, response_model=AuditInfo)
-async def create_audit(body: AuditCreate, client_id: ClientDep, session: SessionDep) -> AuditInfo:
+async def create_audit(body: AuditCreate, tenant: TenantDep, session: SessionDep) -> AuditInfo:
     as_at = body.as_at or sydney_today()
     findings = await run_audit(session, body.jurisdiction, as_at, body.lease)
     audit = Audit(
@@ -30,10 +31,11 @@ async def create_audit(body: AuditCreate, client_id: ClientDep, session: Session
         input=body.lease.model_dump(mode="json"),
         findings=[f.model_dump(mode="json") for f in findings],
         engine_version=ENGINE_VERSION,
-        client_id=client_id,
+        client_id=tenant.client_id,
         client_ref=body.client_ref,
     )
     session.add(audit)
+    await record_usage(session, tenant.tenant_id, "audit")
     await session.commit()
     await session.refresh(audit)
     return AuditInfo(
