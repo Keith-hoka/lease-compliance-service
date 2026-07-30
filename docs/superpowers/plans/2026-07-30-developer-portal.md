@@ -297,9 +297,7 @@ async def tenant_info(session: AsyncSession, client_id: str) -> dict:
     """Tenant row, its keys, and today's usage as a JSON-ready dict."""
     tenant = await _tenant_by_client_id(session, client_id)
     keys = (
-        (await session.execute(select(ApiKey).where(ApiKey.tenant_id == tenant.id)))
-        .scalars()
-        .all()
+        (await session.execute(select(ApiKey).where(ApiKey.tenant_id == tenant.id))).scalars().all()
     )
     today = datetime.now(UTC).date()
     counters = (
@@ -550,18 +548,14 @@ class PortalUser(Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     verify_token: Mapped[str | None] = mapped_column(Text, unique=True)
     tenant_client_id: Mapped[str | None] = mapped_column(Text, unique=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class InviteCode(Base):
     __tablename__ = "invite_codes"
 
     code: Mapped[str] = mapped_column(Text, primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     used_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("portal_users.id"))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -716,8 +710,12 @@ async def test_signup_rejects_bad_or_used_invite(client, db_session, invite):
     await client.post("/api/signup", json={"invite_code": invite, **BODY})
     reused = await client.post(
         "/api/signup",
-        json={"invite_code": invite, "email": "two@example.com",
-              "password": "hunter2secure", "accept_tos": True},
+        json={
+            "invite_code": invite,
+            "email": "two@example.com",
+            "password": "hunter2secure",
+            "accept_tos": True,
+        },
     )
     assert reused.status_code == 422
 
@@ -1282,9 +1280,7 @@ def client_id_candidates(email: str) -> list[str]:
 
 async def _owned_by_someone(session: AsyncSession, client_id: str) -> bool:
     row = (
-        await session.execute(
-            select(PortalUser.id).where(PortalUser.tenant_client_id == client_id)
-        )
+        await session.execute(select(PortalUser.id).where(PortalUser.tenant_client_id == client_id))
     ).first()
     return row is not None
 
@@ -1373,7 +1369,14 @@ INFO = {
     "status": "active",
     "rpm_limit": 60,
     "clause_audits_per_day": 10,
-    "keys": [{"prefix": "lk_abc12", "status": "active", "created_at": "2026-07-30T00:00:00", "last_used_at": None}],
+    "keys": [
+        {
+            "prefix": "lk_abc12",
+            "status": "active",
+            "created_at": "2026-07-30T00:00:00",
+            "last_used_at": None,
+        }
+    ],
     "today": {"audit": 0, "clause_audit": 0, "legislation": 0},
 }
 
@@ -1407,9 +1410,7 @@ async def test_new_key_and_revoke(client, provisioned):
     respx.post(f"{settings.admin_api_url}/admin/tenants/dev/keys").mock(
         return_value=Response(201, json={"api_key": "lk_second1"})
     )
-    respx.delete(f"{settings.admin_api_url}/admin/keys/lk_abc12").mock(
-        return_value=Response(204)
-    )
+    respx.delete(f"{settings.admin_api_url}/admin/keys/lk_abc12").mock(return_value=Response(204))
     created = await client.post("/api/keys")
     assert created.status_code == 200
     assert created.json() == {"api_key": "lk_second1"}
