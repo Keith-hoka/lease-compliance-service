@@ -68,8 +68,12 @@ Database `lease_portal`, separate alembic version history.
 Sessions: httpOnly + Secure + SameSite=Lax cookie holding a signed token
 (the SaaS backend's JWT conventions), 7-day expiry.
 
-client_id generation: slug of the email local part, `-2`, `-3` suffixes
-on collision. Users never choose it.
+client_id generation: slug of the email local part plus the first six
+hex chars of the user id (e.g. `jane-doe-dev-3f9a1c`). Users never choose
+it. The suffix makes the id globally unique across the service's shared
+tenant namespace, so crash recovery is unambiguous: a create conflict can
+only be our own half-created tenant, never someone else's, and recovery
+is simply issuing a new key.
 
 Invite codes are managed by a CLI in the portal backend:
 `python -m app.invites new [--count N]` and `list`, run on the server.
@@ -85,9 +89,9 @@ Invite codes are managed by a CLI in the portal backend:
    tenant, shows the API key once (copy button plus a "you will not see
    this again" warning), continues to the dashboard. If provisioning
    fails the user stays verified but tenantless; the dashboard shows a
-   retry button. Retry rule: `tenant_client_id` filled = provisioned;
-   before retrying, GET the tenant - if it exists but the key was never
-   shown, issue a new key instead of re-creating.
+   retry button. Retry rule: `tenant_client_id` filled = provisioned; a
+   create conflict on our unique id means our own earlier attempt
+   half-created it, so issue a new key for it.
 3. `/login`, `/logout` - standard; unverified users are prompted to
    re-send the verification email.
 4. `/dashboard` - key list (prefix, status, created, last used), new-key
