@@ -60,6 +60,8 @@ Deploy / roll back (from the `lease-portal` repo root on the Mac;
 Config lives in `.env.portal` next to `.env` on the droplet (chmod 600,
 never commit) - see `env.example` for the full variable list.
 `ADMIN_API_KEY` must match the value in the service `.env`.
+`PORTAL_DOMAIN` must be set in the service `.env` before any `deploy.sh`
+run once the portal service exists in the stack.
 
 Signup is invite-gated; issue a code from the droplet:
 
