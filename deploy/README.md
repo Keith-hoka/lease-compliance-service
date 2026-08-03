@@ -1,9 +1,9 @@
 # Server runbook
 
 One droplet (DigitalOcean SYD1) runs the stack from `/opt/lease-compliance`:
-`compose.yaml`, `Caddyfile` and `.env` (chmod 600). Images come from
-`ghcr.io/keith-hoka/lease-compliance-service`, published by CI on green
-main.
+`compose.yaml`, `Caddyfile`, `.env` and `.env.portal` (all chmod 600).
+Images come from `ghcr.io/keith-hoka/lease-compliance-service` and
+`ghcr.io/keith-hoka/lease-portal`, published by CI on green main.
 
 ## Deploy / roll back
 
@@ -35,6 +35,38 @@ Commands: `create <client_id> --name NAME [--rpm N] [--clause-per-day N]`,
 <client_id>`, `set-limits <client_id> --rpm N --clause-per-day N`,
 `usage <client_id> --days 30`, `import-env-keys`. `create` and `new-key`
 print the plaintext key once; it is never stored or shown again.
+
+## Portal
+
+The developer portal (self-service signup, API keys, usage) runs as a
+second image alongside the API, deployed from the `lease-portal` repo.
+One-time setup on the droplet, before the first portal deploy: create its
+database on the shared `db` service.
+
+```bash
+ssh "$LEASE_DEPLOY_SERVER" "cd /opt/lease-compliance \
+  && docker compose exec db createdb -U postgres lease_portal"
+```
+
+Deploy / roll back (from the `lease-portal` repo root on the Mac;
+`LEASE_DEPLOY_SERVER` and `PORTAL_DEPLOY_DOMAIN` exported, e.g. in
+`~/.zshrc`):
+
+```bash
+./deploy/deploy-portal.sh              # latest
+./deploy/deploy-portal.sh sha-abc1234  # pin a version = rollback
+```
+
+Config lives in `.env.portal` next to `.env` on the droplet (chmod 600,
+never commit) - see `env.example` for the full variable list.
+`ADMIN_API_KEY` must match the value in the service `.env`.
+
+Signup is invite-gated; issue a code from the droplet:
+
+```bash
+ssh "$LEASE_DEPLOY_SERVER" "cd /opt/lease-compliance \
+  && docker compose exec portal uv run --no-sync python -m app.invites new"
+```
 
 ## Corpus (runs on the Mac, never the server)
 

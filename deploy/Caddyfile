@@ -1,3 +1,7 @@
 {$DOMAIN} {
     reverse_proxy api:8000
 }
+
+{$PORTAL_DOMAIN} {
+    reverse_proxy portal:8001
+}

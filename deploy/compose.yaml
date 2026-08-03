@@ -7,6 +7,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  portal:
+    image: ghcr.io/keith-hoka/lease-portal:${PORTAL_TAG:-latest}
+    env_file: .env.portal
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
   db:
     image: postgres:16
     environment:
@@ -30,6 +40,7 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
