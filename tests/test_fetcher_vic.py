@@ -15,6 +15,7 @@ LANDING_HTML = f"""
   <a href="{LANDING}/113#rpl-above-body">1 July 2026 113 In force</a>
   <a href="{LANDING}/112">30 June 2026 112 Superseded</a>
   <a href="{LANDING}/098">29 Mar 2021 098 Superseded</a>
+  <a href="{LANDING}/114#frag">2 July 2026 114 In force</a>
   <a href="{LANDING}">not a version row</a>
 </div>
 </body></html>
@@ -37,6 +38,20 @@ def test_list_versions_parses_rows_ascending():
         VersionInfo("112", date(2026, 6, 30), "Superseded"),
         VersionInfo("113", date(2026, 7, 1), "In force"),
     ]
+    assert all(v.number != "114" for v in versions)
+
+
+@respx.mock
+def test_same_date_versions_order_by_number():
+    html = f"""
+    <html><body>
+      <a href="{LANDING}/200">1 May 2024 200 Superseded</a>
+      <a href="{LANDING}/199">1 May 2024 199 Superseded</a>
+    </body></html>
+    """
+    respx.get(LANDING).mock(return_value=Response(200, text=html))
+    versions = list_versions(LANDING)
+    assert [v.number for v in versions] == ["199", "200"]
 
 
 @respx.mock
@@ -44,6 +59,18 @@ def test_docx_url_skips_authorised_pdf():
     respx.get(f"{LANDING}/113").mock(return_value=Response(200, text=VERSION_HTML))
     url = docx_url(LANDING, "113")
     assert url.endswith("/97-109a113.docx")
+
+
+@respx.mock
+def test_docx_url_prefers_file_carrying_the_version_number():
+    html = """
+    <html><body>
+    <a href="https://content.legislation.vic.gov.au/files/97-109a112.docx">old</a>
+    <a href="https://content.legislation.vic.gov.au/files/97-109a113.docx">new</a>
+    </body></html>
+    """
+    respx.get(f"{LANDING}/113").mock(return_value=Response(200, text=html))
+    assert docx_url(LANDING, "113").endswith("97-109a113.docx")
 
 
 @respx.mock

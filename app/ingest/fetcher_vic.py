@@ -54,7 +54,7 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
         text = node.text()
         status = "In force" if "In force" in text else "Superseded"
         seen[number] = VersionInfo(number, _parse_date(text), status)
-    return sorted(seen.values(), key=lambda v: v.effective_date)
+    return sorted(seen.values(), key=lambda v: (v.effective_date, int(v.number)))
 
 
 def docx_url(landing_url: str, number: str) -> str:
@@ -68,7 +68,8 @@ def docx_url(landing_url: str, number: str) -> str:
         and href.endswith(".docx")
         and "authorised" not in href
     ]
-    return docx[0]
+    numbered = [href for href in docx if number in href.rsplit("/", 1)[-1]]
+    return numbered[0] if numbered else docx[0]
 
 
 def fetch_docx(url: str, cache_path: Path) -> bytes:
