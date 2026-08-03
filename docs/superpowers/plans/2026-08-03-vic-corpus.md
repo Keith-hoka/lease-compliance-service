@@ -315,10 +315,7 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
 def docx_url(landing_url: str, number: str) -> str:
     """The whole-instrument DOCX link on a version page."""
     html = _get(f"{landing_url}/{number}").text
-    candidates = [
-        node.attributes.get("href", "") or ""
-        for node in HTMLParser(html).css("a")
-    ]
+    candidates = [node.attributes.get("href", "") or "" for node in HTMLParser(html).css("a")]
     docx = [
         href
         for href in candidates
@@ -644,9 +641,7 @@ async def test_load_all_vic_builds_the_timeline(db_session, tmp_path, monkeypatc
     from app.ingest import __main__ as ingest_main
 
     bytes_by_number = {"001": V1, "002": V2}
-    monkeypatch.setattr(
-        ingest_main, "docx_url", lambda landing, number: f"https://x/{number}.docx"
-    )
+    monkeypatch.setattr(ingest_main, "docx_url", lambda landing, number: f"https://x/{number}.docx")
     monkeypatch.setattr(
         ingest_main,
         "fetch_docx",
@@ -666,14 +661,10 @@ async def test_load_all_vic_builds_the_timeline(db_session, tmp_path, monkeypatc
     await load_all_vic(db_session, instrument, versions, tmp_path)
 
     act = (
-        await db_session.execute(
-            select(Act).where(Act.slug == "residential-tenancies-act-1997")
-        )
+        await db_session.execute(select(Act).where(Act.slug == "residential-tenancies-act-1997"))
     ).scalar_one()
     rows = (
-        (await db_session.execute(select(Section).where(Section.act_id == act.id)))
-        .scalars()
-        .all()
+        (await db_session.execute(select(Section).where(Section.act_id == act.id))).scalars().all()
     )
     assert len(rows) == 2
     closed = next(r for r in rows if r.valid_to is not None)
@@ -850,9 +841,7 @@ async def refresh_corpus_vic(session_factory=async_session_factory) -> None:
             ingested = set(
                 (
                     await session.execute(
-                        select(IngestedVersion.version_date).where(
-                            IngestedVersion.act_id == act.id
-                        )
+                        select(IngestedVersion.version_date).where(IngestedVersion.act_id == act.id)
                     )
                 )
                 .scalars()
@@ -865,9 +854,7 @@ async def refresh_corpus_vic(session_factory=async_session_factory) -> None:
                 continue
             cache_dir = VIC_CACHE_ROOT / instrument["slug"]
             for version in missing:
-                url = await asyncio.to_thread(
-                    docx_url, instrument["landing_url"], version.number
-                )
+                url = await asyncio.to_thread(docx_url, instrument["landing_url"], version.number)
                 data = await asyncio.to_thread(
                     fetch_docx, url, cache_dir / f"{version.number}.docx"
                 )
