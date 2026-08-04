@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from selectolax.parser import HTMLParser
@@ -46,7 +47,8 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
     highest-numbered one is kept - it superseded the other same-day.
     """
     html = _get(landing_url).text
-    row_href = re.compile(rf"^{re.escape(landing_url)}/(\d+)$")
+    path = urlparse(landing_url).path
+    row_href = re.compile(rf"^(?:https?://[^/]+)?{re.escape(path)}/(\d+)$")
     seen: dict[str, VersionInfo] = {}
     for node in HTMLParser(html).css("a"):
         href = node.attributes.get("href", "") or ""

@@ -8,15 +8,17 @@ from app.ingest.fetcher_vic import VersionInfo, docx_url, fetch_docx, list_versi
 
 LANDING = "https://www.legislation.vic.gov.au/in-force/acts/residential-tenancies-act-1997"
 
+PATH = "/in-force/acts/residential-tenancies-act-1997"
+
 LANDING_HTML = f"""
 <html><body>
 <div class="version-history">
-  <a href="{LANDING}/113">1 July 2026 113 In force</a>
-  <a href="{LANDING}/113#rpl-above-body">1 July 2026 113 In force</a>
-  <a href="{LANDING}/112">30 June 2026 112 Superseded</a>
+  <a href="{PATH}/113"><span>1 July 2026</span><span>113</span><span>In force</span></a>
+  <a href="{PATH}/113#rpl-above-body">1 July 2026 113 In force</a>
+  <a href="{PATH}/112"><span>30 June 2026</span><span>112</span><span>Superseded</span></a>
   <a href="{LANDING}/098">29 Mar 2021 098 Superseded</a>
-  <a href="{LANDING}/114#frag">2 July 2026 114 In force</a>
-  <a href="{LANDING}">not a version row</a>
+  <a href="{PATH}/114#frag">2 July 2026 114 In force</a>
+  <a href="{PATH}">not a version row</a>
 </div>
 </body></html>
 """

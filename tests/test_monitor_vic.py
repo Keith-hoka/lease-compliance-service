@@ -5,12 +5,12 @@ from sqlalchemy import select
 
 from app.ingest.fetcher_vic import VersionInfo
 from app.models import Act, Section
-from tests.test_parser_vic import build_docx
+from tests.test_parser_vic import HEAD, build_docx
 
 DOCX = build_docx(
     [
         (None, "Part 1—Preliminary"),
-        (None, "1 Purposes"),
+        (HEAD, "1\tPurposes"),
         (None, "Fresh body."),
     ]
 )

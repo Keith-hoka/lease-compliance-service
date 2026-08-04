@@ -1,9 +1,21 @@
 """Parse a whole VIC instrument DOCX into sections.
 
-Classification is style-first: when SECTION_HEADING_STYLES is pinned
-(by the rollout spike, from real authorised-version style names), only
-those styles start a section. While it is empty, a regex fallback
+Classification is style-first: SECTION_HEADING_STYLES carries the real
+authorised-version style names pinned by the rollout spike, and only
+those styles start a section. Were it ever emptied, a regex fallback
 matches headings like "27B Prohibited terms".
+
+Schedule clauses reuse act section numbers, so they are keyed with a
+schedule prefix ("S1-1" for Schedule 1 clause 1) to keep section_no
+unique within a version. Schedules are terminal in consolidated
+instruments (after the Parts, before the Endnotes), and a schedule may
+carry its own internal Part headings - those become division labels so
+the schedule prefix survives.
+
+The wait-for-first-Part gate exists to keep ToC lines out of the regex
+fallback; with pinned styles the toc-style skip already does that, and
+the Regulations open with clauses before any Part heading, so the gate
+applies only in fallback mode.
 """
 
 import io
@@ -13,11 +25,11 @@ from docx import Document
 
 from app.ingest.parser import ParsedSection
 
-SECTION_HEADING_STYLES: tuple[str, ...] = ()
+SECTION_HEADING_STYLES: tuple[str, ...] = ("Draft Heading 1",)
 
 _PART_RE = re.compile(r"^Part \d+[A-Z]*—")
-_DIVISION_RE = re.compile(r"^Division \d+[A-Z]*—")
-_SCHEDULE_RE = re.compile(r"^Schedule \d+[A-Z]*—")
+_DIVISION_RE = re.compile(r"^(?:Division|Subdivision) \d+[A-Z]*—")
+_SCHEDULE_RE = re.compile(r"^Schedule (\d+[A-Z]*)—")
 _SECTION_RE = re.compile(r"^(\d+[A-Z]*)\s+(\S.*)$")
 
 
@@ -36,6 +48,7 @@ def parse_docx(data: bytes) -> list[ParsedSection]:
     sections: list[ParsedSection] = []
     part: str | None = None
     division: str | None = None
+    schedule_no: str | None = None
     current: dict | None = None
     started = False
 
@@ -64,23 +77,28 @@ def parse_docx(data: bytes) -> list[ParsedSection]:
             break
         if _PART_RE.match(text):
             flush()
-            part, division, started = text, None, True
+            if schedule_no is None:
+                part, division, started = text, None, True
+            else:
+                division = text
             continue
-        if _SCHEDULE_RE.match(text):
+        schedule = _SCHEDULE_RE.match(text)
+        if schedule:
             flush()
-            part, division, started = text, None, True
+            part, division, schedule_no, started = text, None, schedule.group(1), True
             continue
         if _DIVISION_RE.match(text):
             flush()
             division = text
             continue
-        if not started:
+        if not started and not SECTION_HEADING_STYLES:
             continue
         match = _SECTION_RE.match(text)
         if match and _is_section_heading(style_name, text):
             flush()
+            number = match.group(1)
             current = {
-                "section_no": match.group(1),
+                "section_no": f"S{schedule_no}-{number}" if schedule_no else number,
                 "heading": match.group(2),
                 "part": part,
                 "division": division,
