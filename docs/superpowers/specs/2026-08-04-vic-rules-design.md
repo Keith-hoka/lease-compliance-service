@@ -33,11 +33,23 @@ amount cap - not decidable from `holding_deposit_amount`); s 27 invalid
 terms (clause-audit territory, sub-project c); the 90-day increase
 notice (no notice-date field in `LeaseInput`).
 
-Each rule follows the NSW conventions exactly: docstring quotes the
-corpus text with its as-at date; `CheckResult` verdicts red/green with
-an evidence dict of fields and computed values; `required_inputs`
-drives the engine's skip behaviour for absent fields; messages state
-the computed cap.
+Each rule follows the NSW conventions in shape: a docstring quotes the
+corpus text with its as-at date; a `CheckResult` verdict is red, green,
+or skipped, paired with an evidence dict of fields and computed values
+(a skip the check function itself produces carries its own skip_reason
+and the full evidence dict, not just the engine's generic required-input
+or applies_from skip text); `required_inputs` drives the engine's skip
+behaviour for absent fields; messages state the computed cap. Four
+points deliberately diverge from NSW: monthly rent is derived once per
+the lease's own frequency rather than round-tripping through a
+cent-rounded weekly figure; the bond and advance checks produce their
+own above-threshold "skipped" verdict, rather than leaving all skips to
+the engine; the fixed-term window's end bound is inclusive, so an
+increase effective on `end_date` counts as in-term, where NSW's
+disclosure check is exclusive; and `fixed_term_increase_in_agreement` is
+itself a required input, so the rule skips when it is unknown, rather
+than NSW's disclosure check, which treats an absent value as not
+provided for.
 
 ## Engine and API
 

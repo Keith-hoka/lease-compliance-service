@@ -100,6 +100,26 @@ async def test_bond_monthly_lease_one_cent_over_cap_is_red(corpus_session):
     assert findings["vic.bond_max_1_month"].verdict == "red"
 
 
+async def test_bond_fortnightly_lease_at_exact_cap_is_green(corpus_session):
+    findings = await run(
+        corpus_session,
+        lease(
+            rent_amount=Decimal(1000), rent_frequency="fortnightly", bond_amount=Decimal("2166.67")
+        ),
+    )
+    assert findings["vic.bond_max_1_month"].verdict == "green"
+
+
+async def test_bond_fortnightly_lease_one_cent_over_cap_is_red(corpus_session):
+    findings = await run(
+        corpus_session,
+        lease(
+            rent_amount=Decimal(1000), rent_frequency="fortnightly", bond_amount=Decimal("2166.68")
+        ),
+    )
+    assert findings["vic.bond_max_1_month"].verdict == "red"
+
+
 async def test_bond_missing_is_skipped(corpus_session):
     findings = await run(corpus_session, lease())
     assert findings["vic.bond_max_1_month"].verdict == "skipped"
@@ -150,6 +170,8 @@ async def test_increase_interval_below_12_months_is_red(corpus_session):
     )
     f = findings["vic.rent_increase_frequency"]
     assert f.verdict == "red"
+    assert "334" in f.summary
+    assert f.evidence["computed"]["gaps_days"] == [334]
     assert any(c.section_no == "44" for c in f.citations)
 
 
@@ -163,7 +185,9 @@ async def test_increase_interval_of_exactly_365_days_is_green(corpus_session):
             ]
         ),
     )
-    assert findings["vic.rent_increase_frequency"].verdict == "green"
+    f = findings["vic.rent_increase_frequency"]
+    assert f.verdict == "green"
+    assert f.evidence["computed"]["gaps_days"] == [365]
 
 
 async def test_frequency_rule_skips_before_commencement(corpus_session):
@@ -180,6 +204,11 @@ async def test_frequency_rule_skips_before_commencement(corpus_session):
     f = findings["vic.rent_increase_frequency"]
     assert f.verdict == "skipped"
     assert "not active" in f.skip_reason
+
+
+async def test_frequency_check_green_with_no_rent_increases(corpus_session):
+    findings = await run(corpus_session, lease(rent_increases=[]))
+    assert findings["vic.rent_increase_frequency"].verdict == "green"
 
 
 async def test_fixed_term_increase_without_provision_is_red(corpus_session):
@@ -221,6 +250,7 @@ async def test_increase_outside_the_term_is_green(corpus_session):
 
 async def test_nsw_audit_unchanged_and_vic_returns_only_vic_rules(corpus_session):
     vic = await run(corpus_session, lease(bond_amount=Decimal(2500)))
+    assert len(vic) == 4
     assert all(rule_id.startswith("vic.") for rule_id in vic)
     nsw_findings = await run_audit(
         corpus_session,

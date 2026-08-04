@@ -9,7 +9,7 @@ ACT = "residential-tenancies-act-1997"
 REGS = "residential-tenancies-regulations-2021"
 
 RENT_THRESHOLD_WEEKLY = Decimal(900)
-FREQ_COMMENCED = date(2020, 4, 6)
+S44_CORPUS_FLOOR = date(2020, 4, 6)
 YEAR = timedelta(days=365)
 
 
@@ -111,36 +111,50 @@ def _advance_check(lease: LeaseInput) -> CheckResult:
 def _frequency_check(lease: LeaseInput) -> CheckResult:
     """s 44(4A): a residential rental provider "must not increase the rent payable
     under a residential rental agreement at intervals of less than 12 months"
-    (corpus text as at 2026-08-04). FREQ_COMMENCED is pinned to 2020-04-06, the
-    earliest version the corpus carries for s 44: that version already states
-    the 12-month interval, and its own amendment note records (4A) as inserted
-    by No. 45/2002 s 12(2), predating the corpus's coverage. The corpus shows no
+    (corpus text as at 2026-08-04). S44_CORPUS_FLOOR names the corpus's
+    ingestion floor for s 44, 2020-04-06, not a legal commencement: that is the
+    earliest version the corpus carries, it already states the 12-month
+    interval, and its own amendment note records (4A) as inserted by No.
+    45/2002 s 12(2), predating the corpus's coverage. The corpus shows no
     in-force / not-in-force flip at 2021-03-29; that boundary only renames
     "landlord" and "tenant" to "residential rental provider" and "renter". The
-    pre-reform 6-month interval era predates the corpus and is not modelled.
+    pre-reform 6-month interval era predates the corpus and is not modelled;
+    applies_from is pinned to this floor as a deliberate safety net so that if
+    that earlier text were ever backfilled, citation gating alone would not run
+    this 12-month check against the 6-month era.
     """
     dates = sorted(i.effective_on for i in lease.rent_increases)
-    evidence = {"fields": {"rent_increases": [str(d) for d in dates]}}
-    for earlier, later in pairwise(dates):
-        if later - earlier < YEAR:
-            return (
-                "red",
-                f"Rent increases on {earlier} and {later} are less than 12 months apart.",
-                evidence,
-            )
-    return ("green", "All rent increases are at least 12 months apart.", evidence)
+    gaps = [(later - earlier).days for earlier, later in pairwise(dates)]
+    evidence = {
+        "fields": {"rent_increases": [str(d) for d in dates]},
+        "computed": {"gaps_days": gaps},
+    }
+    short = [g for g in gaps if g < YEAR.days]
+    if short:
+        return (
+            "red",
+            f"Rent increases less than 12 months apart (shortest gap {min(short)} days).",
+            evidence,
+        )
+    return "green", "All rent increases are at least 12 months apart.", evidence
 
 
 def _fixed_term_check(lease: LeaseInput) -> CheckResult:
     """s 44(4): under a fixed term agreement the rent must not be increased before
     the term ends unless the agreement provides for the increase (a specified
-    amount or method) (corpus text as at 2026-08-04).
+    amount or method) (corpus text as at 2026-08-04). end_date is treated as the
+    last day of the term, so an increase effective on end_date counts as in-term
+    (NSW's disclosure check uses an exclusive bound, following different
+    statutory text). s 44(4)'s second limb - that the increase must also not
+    exceed the amount or method the agreement specifies - is not decidable from
+    structured lease input and is not modelled here; that belongs to
+    clause-audit territory.
     """
-    in_term = [
+    in_term = sorted(
         i.effective_on
         for i in lease.rent_increases
         if lease.start_date <= i.effective_on <= lease.end_date
-    ]
+    )
     evidence = {
         "fields": {
             "fixed_term_increase_in_agreement": str(lease.fixed_term_increase_in_agreement),
@@ -184,7 +198,7 @@ VIC_RULES = [
         rule_id="vic.rent_increase_frequency",
         jurisdiction="VIC",
         citations=[SectionRef(ACT, "44")],
-        applies_from=FREQ_COMMENCED,
+        applies_from=S44_CORPUS_FLOOR,
         applies_to=None,
         required_inputs=["rent_increases"],
         check=_frequency_check,

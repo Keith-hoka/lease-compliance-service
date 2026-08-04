@@ -192,6 +192,7 @@ async def test_vic_audit_accepted_and_clause_audit_still_nsw_only(client, monkey
     response = await client.post("/v1/audits", json=body, headers=KEY)
     assert response.status_code == 201
     findings = {f["rule_id"]: f for f in response.json()["findings"]}
+    assert len(findings) == 4
     assert all(rule_id.startswith("vic.") for rule_id in findings)
 
     clause = await client.post(
