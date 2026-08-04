@@ -75,6 +75,7 @@ async def run_audit(
                 summary=summary,
                 evidence=evidence,
                 citations=citations,
+                skip_reason=summary if verdict == "skipped" else None,
             )
         )
     return findings

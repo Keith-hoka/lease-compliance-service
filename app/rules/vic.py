@@ -14,8 +14,19 @@ YEAR = timedelta(days=365)
 
 
 def _monthly_rent(lease: LeaseInput) -> Decimal:
-    weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
-    return (weekly * 52 / 12).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    """One month's rent derived from the lease's own frequency, rounded once.
+
+    Monthly leases use the stated amount as-is; fortnightly and weekly amounts
+    are scaled straight to a monthly figure rather than round-tripping through
+    a cent-rounded weekly equivalent, which would round twice.
+    """
+    if lease.rent_frequency == "weekly":
+        monthly = lease.rent_amount * 52 / 12
+    elif lease.rent_frequency == "fortnightly":
+        monthly = lease.rent_amount * 26 / 12
+    else:
+        monthly = lease.rent_amount
+    return monthly.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _bond_check(lease: LeaseInput) -> CheckResult:
@@ -55,8 +66,13 @@ def _bond_check(lease: LeaseInput) -> CheckResult:
 
 def _advance_check(lease: LeaseInput) -> CheckResult:
     """s 40(1): a residential rental provider "must not solicit or otherwise invite
-    a renter to pay rent ... more than 1 month in advance"; s 40(2) disapplies the
-    limit above the reg 17 prescribed weekly amount (corpus text as at 2026-08-04).
+    a renter to pay rent ... more than 1 month in advance"; s 40(2) disapplies
+    subsection (1) only above the reg 17 prescribed weekly amount. s 40(3)
+    (inserted by No. 6/2025, in force 2025-11-25) separately prohibits accepting
+    unsolicited payment of rent more than one month in advance and is not
+    disapplied by s 40(2); whether a payment was solicited cannot be decided from
+    structured lease input, so s 40(3) is not modelled here (corpus text as at
+    2026-08-04).
     """
     weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
     monthly = _monthly_rent(lease)
@@ -68,8 +84,8 @@ def _advance_check(lease: LeaseInput) -> CheckResult:
         return (
             "skipped",
             (
-                f"The one-month advance cap does not apply: weekly rent {weekly} exceeds "
-                f"the prescribed {RENT_THRESHOLD_WEEKLY}."
+                f"The one-month advance cap in s 40(1) does not apply: weekly rent "
+                f"{weekly} exceeds the prescribed {RENT_THRESHOLD_WEEKLY}."
             ),
             evidence,
         )

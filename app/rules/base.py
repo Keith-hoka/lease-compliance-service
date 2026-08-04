@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.schemas.lease import LeaseInput
 
-CheckResult = tuple[Literal["red", "green"], str, dict]
+CheckResult = tuple[Literal["red", "green", "skipped"], str, dict]
 
 
 @dataclass(frozen=True)

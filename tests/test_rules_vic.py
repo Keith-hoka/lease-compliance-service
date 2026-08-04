@@ -79,6 +79,7 @@ async def test_bond_cap_skipped_above_rent_threshold(corpus_session):
     f = findings["vic.bond_max_1_month"]
     assert f.verdict == "skipped"
     assert "does not apply" in f.summary
+    assert "does not apply" in f.skip_reason
 
 
 async def test_bond_cap_holds_at_exactly_900_weekly(corpus_session):
@@ -86,6 +87,16 @@ async def test_bond_cap_holds_at_exactly_900_weekly(corpus_session):
         corpus_session,
         lease(rent_amount=Decimal(900), rent_frequency="weekly", bond_amount=Decimal(5000)),
     )
+    assert findings["vic.bond_max_1_month"].verdict == "red"
+
+
+async def test_bond_monthly_lease_at_exact_cap_is_green(corpus_session):
+    findings = await run(corpus_session, lease(bond_amount=Decimal(2000)))
+    assert findings["vic.bond_max_1_month"].verdict == "green"
+
+
+async def test_bond_monthly_lease_one_cent_over_cap_is_red(corpus_session):
+    findings = await run(corpus_session, lease(bond_amount=Decimal("2000.01")))
     assert findings["vic.bond_max_1_month"].verdict == "red"
 
 
@@ -122,7 +133,9 @@ async def test_advance_skipped_above_threshold(corpus_session):
             rent_in_advance_amount=Decimal(50000),
         ),
     )
-    assert findings["vic.advance_max_1_month"].verdict == "skipped"
+    f = findings["vic.advance_max_1_month"]
+    assert f.verdict == "skipped"
+    assert "does not apply" in f.skip_reason
 
 
 async def test_increase_interval_below_12_months_is_red(corpus_session):

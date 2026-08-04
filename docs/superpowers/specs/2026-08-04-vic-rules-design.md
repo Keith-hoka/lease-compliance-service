@@ -16,14 +16,16 @@ Constants: `ACT = "residential-tenancies-act-1997"`,
 `REGS = "residential-tenancies-regulations-2021"`,
 `RENT_THRESHOLD_WEEKLY = Decimal(900)` (reg 17: "For the purposes of
 section 31(3) of the Act, the prescribed amount is $900", whose note
-extends the same amount to s 40), monthly rent = weekly x 52 / 12
-(quantized to cents).
+extends the same amount to s 40). Monthly rent is derived from the
+lease's own frequency with a single rounding (monthly = the stated
+amount; fortnightly x 26 / 12; weekly x 52 / 12), rather than
+round-tripping through a cent-rounded weekly figure.
 
 | rule_id | citations | logic | required_inputs |
 |---|---|---|---|
 | `vic.bond_max_1_month` | s 31 + reg 17 | s 31(1)(a): bond must not exceed one month's rent; s 31(3): the cap "does not apply ... if the weekly amount of rent payable under the agreement exceeds the prescribed amount". Weekly rent <= 900: bond > monthly rent -> red, else green. Weekly rent > 900: skipped ("the statutory cap does not apply at this rent"). | bond_amount |
-| `vic.advance_max_1_month` | s 40 + reg 17 | s 40(1): "must not solicit or otherwise invite a renter to pay rent ... more than 1 month in advance"; s 40(2) disapplies above the prescribed weekly amount. Same threshold shape as the bond rule. | rent_in_advance_amount |
-| `vic.rent_increase_frequency` | s 44 | s 44(4A): "must not increase the rent ... at intervals of less than 12 months". Pairwise over `rent_increases` (the NSW frequency pattern); any gap < 365 days -> red. `applies_from` = the commencement of the 12-month interval (read from the corpus's s 44 history during implementation; the pre-reform interval was 6 months and is not modelled - audits with as_at before commencement skip). | rent_increases |
+| `vic.advance_max_1_month` | s 40 + reg 17 | s 40(1): "must not solicit or otherwise invite a renter to pay rent ... more than 1 month in advance"; s 40(2) disapplies s 40(1) only, above the prescribed weekly amount. Same threshold shape as the bond rule. s 40(3) (in force 2025-11-25) separately prohibits accepting unsolicited advance payment and is not disapplied by s 40(2); not modelled, since structured input cannot distinguish solicited from unsolicited payment. | rent_in_advance_amount |
+| `vic.rent_increase_frequency` | s 44 | s 44(4A): "must not increase the rent ... at intervals of less than 12 months". Pairwise over `rent_increases` (the NSW frequency pattern); any gap < 365 days -> red. `applies_from` is pinned to the corpus's ingestion floor (2020-04-06): the corpus shows the 12-month interval present at every version back to that floor, and its own amendment note records (4A) as inserted in 2002 by No. 45/2002, predating the corpus's coverage - so the floor is a data-availability boundary, not a legislative commencement date. The pre-reform 6-month interval is not modelled - audits with as_at before the floor skip. | rent_increases |
 | `vic.fixed_term_increase_provision` | s 44 | s 44(4): within a fixed term the rent may only be increased if the agreement provides for it (amount or method). An increase dated inside [start_date, end_date] with `fixed_term_increase_in_agreement` not true -> red; true -> green; no in-term increases -> green. Requires `end_date` (no fixed term without one -> rule skipped by required_inputs). | rent_increases, fixed_term_increase_in_agreement, end_date |
 
 Not modelled, and why: s 50 holding deposits (a refund duty, not an
