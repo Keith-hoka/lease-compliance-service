@@ -11,10 +11,17 @@ import httpx
 from selectolax.parser import HTMLParser
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+EARLIEST_VERSION_DATE = date(2020, 4, 1)
 FETCH_PAUSE_SECONDS = 1.0
 VIC_CACHE_ROOT = Path("data/raw/vic")
 
 _DATE_RE = re.compile(r"(\d{1,2} \w+ \d{4})")
+
+
+def _number_key(number: str) -> tuple[int, str]:
+    """Natural order for version numbers like 079 and 079A."""
+    match = re.match(r"(\d+)([A-Z]?)", number)
+    return (int(match.group(1)), match.group(2))
 
 
 @dataclass(frozen=True)
@@ -50,7 +57,7 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
     """
     html = _get(landing_url).text
     path = urlparse(landing_url).path
-    row_href = re.compile(rf"^(?:https?://[^/]+)?{re.escape(path)}/(\d+)$")
+    row_href = re.compile(rf"^(?:https?://[^/]+)?{re.escape(path)}/(\d+[A-Z]?)$")
     seen: dict[str, VersionInfo] = {}
     for node in HTMLParser(html).css("a"):
         href = node.attributes.get("href", "") or ""
@@ -66,10 +73,12 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
 
     newest_by_date: dict[date, VersionInfo] = {}
     for version in seen.values():
+        if version.effective_date < EARLIEST_VERSION_DATE:
+            continue
         current = newest_by_date.get(version.effective_date)
-        if current is None or int(version.number) > int(current.number):
+        if current is None or _number_key(version.number) > _number_key(current.number):
             newest_by_date[version.effective_date] = version
-    return sorted(newest_by_date.values(), key=lambda v: (v.effective_date, int(v.number)))
+    return sorted(newest_by_date.values(), key=lambda v: (v.effective_date, _number_key(v.number)))
 
 
 def docx_url(landing_url: str, number: str) -> str:

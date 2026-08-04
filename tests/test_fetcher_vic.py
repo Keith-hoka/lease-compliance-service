@@ -96,3 +96,31 @@ def test_fetch_docx_caches(tmp_path: Path):
     second = fetch_docx(url, cache)
     assert second == b"DOCXBYTES"
     assert route.call_count == 1
+
+
+@respx.mock
+def test_versions_before_the_floor_are_excluded():
+    html = f"""
+    <html><body>
+      <a href="{PATH}/010">17 Dec 1999 010 Superseded</a>
+      <a href="{PATH}/091">25 Apr 2020 091 Superseded</a>
+      <a href="{PATH}/113">1 July 2026 113 In force</a>
+    </body></html>
+    """
+    respx.get(LANDING).mock(return_value=Response(200, text=html))
+    versions = list_versions(LANDING)
+    assert [v.number for v in versions] == ["091", "113"]
+
+
+@respx.mock
+def test_letter_suffixed_versions_parse_and_order_naturally():
+    html = f"""
+    <html><body>
+      <a href="{PATH}/080">2 Feb 2021 080 Superseded</a>
+      <a href="{PATH}/079A">1 Feb 2021 079A Superseded</a>
+      <a href="{PATH}/079">1 Jan 2021 079 Superseded</a>
+    </body></html>
+    """
+    respx.get(LANDING).mock(return_value=Response(200, text=html))
+    versions = list_versions(LANDING)
+    assert [v.number for v in versions] == ["079", "079A", "080"]
