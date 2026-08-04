@@ -48,6 +48,7 @@ REG_COMMENCED = date(2019, 12, 16)
 @dataclass(frozen=True)
 class ClauseRule:
     rule_id: str
+    jurisdiction: Literal["NSW", "VIC"]
     family: Literal["prohibited", "mandatory"]
     ref: SectionRef
     applies_from: date | None
@@ -58,6 +59,7 @@ class ClauseRule:
 PROHIBITED_RULES = [
     ClauseRule(
         rule_id="nsw.clause.carpet_cleaning",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=COMMENCED,
@@ -72,6 +74,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.fumigation",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=PETS_COMMENCED,
@@ -86,6 +89,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.specified_insurance",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=COMMENCED,
@@ -97,6 +101,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.landlord_liability_exemption",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=COMMENCED,
@@ -109,6 +114,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.breach_penalty",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=COMMENCED,
@@ -124,6 +130,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.no_breach_rent_inducement",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=COMMENCED,
@@ -136,6 +143,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.specified_contractor",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=PETS_COMMENCED,
@@ -148,6 +156,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.specified_contractor_reg",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("sl-2019-0629", "5"),
         applies_from=REG_COMMENCED,
@@ -162,6 +171,7 @@ PROHIBITED_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.utility_provider",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("sl-2019-0629", "5"),
         applies_from=REG_COMMENCED,
@@ -177,6 +187,7 @@ PROHIBITED_RULES = [
 MANDATORY_RULES = [
     ClauseRule(
         rule_id="nsw.clause.states_rent_payment",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "33"),
         applies_from=COMMENCED,
@@ -188,6 +199,7 @@ MANDATORY_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.quiet_enjoyment_term",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "50"),
         applies_from=COMMENCED,
@@ -200,6 +212,7 @@ MANDATORY_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.tenant_use_term",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "51"),
         applies_from=COMMENCED,
@@ -212,6 +225,7 @@ MANDATORY_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.habitability_term",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "52"),
         applies_from=COMMENCED,
@@ -223,6 +237,7 @@ MANDATORY_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.repairs_term",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "63"),
         applies_from=COMMENCED,
@@ -234,6 +249,7 @@ MANDATORY_RULES = [
     ),
     ClauseRule(
         rule_id="nsw.clause.locks_security_term",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "70"),
         applies_from=COMMENCED,

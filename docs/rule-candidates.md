@@ -56,3 +56,15 @@ window (2019-12-16 to 2025-05-19; point-in-time resolution returns the
 2019 cl 5 text, which contains the effect), and
 `nsw.clause.specified_contractor` cites the Act from 2025-05-19 onward.
 Exactly one is active at any as-at date.
+
+## VIC clause-rule exclusions (corpus as at 2026-08-05)
+
+Surveyed for the VIC clause audit (s 27B + reg 11 shipped as
+`vic.clause.*` rules). Excluded:
+
+| Source | Why excluded |
+|---|---|
+| s 27 (invalid additional terms) | Deciding "additional to the standard form" requires the standard form's own terms - the form-comparison milestone |
+| s 28 (harsh and unconscionable terms) | Tribunal discretion on application, not a clause-readable effect |
+| regs 39 / 53 / 73 (prohibited terms) | Rooming houses, caravan parks and site agreements - other tenure types outside the residential rental audit |
+| Standard-form presence/comparison | Regulation schedules milestone |

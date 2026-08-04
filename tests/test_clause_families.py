@@ -20,6 +20,7 @@ DOC = DocumentInput(kind="text", text=f"AGREEMENT. {CARPET} Rent is payable week
 
 RULE = ClauseRule(
     rule_id="nsw.clause.carpet_cleaning",
+    jurisdiction="NSW",
     family="prohibited",
     ref=SectionRef("act-2010-042", "19"),
     applies_from=date(2011, 1, 31),
@@ -110,6 +111,7 @@ async def test_inactive_rule_is_skipped_without_judging(fake_judge, db_session, 
 async def test_unresolvable_section_is_skipped(fake_judge, db_session, seeded_s19, monkeypatch):
     ghost = ClauseRule(
         rule_id="nsw.clause.ghost",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "999"),
         applies_from=date(2011, 1, 31),
@@ -125,6 +127,7 @@ async def test_unresolvable_section_is_skipped(fake_judge, db_session, seeded_s1
 async def test_mandatory_red_needs_no_quote(fake_judge, db_session, seeded_s19, monkeypatch):
     mand = ClauseRule(
         rule_id="nsw.clause.states_rent",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=date(2011, 1, 31),
@@ -149,6 +152,7 @@ async def test_mandatory_red_needs_no_quote(fake_judge, db_session, seeded_s19, 
 def _mandatory_rule():
     return ClauseRule(
         rule_id="nsw.clause.states_rent",
+        jurisdiction="NSW",
         family="mandatory",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=date(2011, 1, 31),

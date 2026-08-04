@@ -15,6 +15,7 @@ CARPET = "The tenant must have the carpet professionally cleaned at the end of t
 
 RULE = ClauseRule(
     rule_id="nsw.clause.carpet_cleaning",
+    jurisdiction="NSW",
     family="prohibited",
     ref=SectionRef("act-2010-042", "19"),
     applies_from=date(2011, 1, 31),

@@ -194,6 +194,7 @@ async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeyp
     carpet = "The tenant must have the carpet professionally cleaned at the end of the tenancy."
     rule = ClauseRule(
         rule_id="nsw.clause.carpet_cleaning",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=date(2011, 1, 31),

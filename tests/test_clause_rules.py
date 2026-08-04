@@ -31,6 +31,7 @@ def test_rule_lists_are_populated_and_distinct():
 def test_rule_active_windows():
     rule = ClauseRule(
         rule_id="nsw.clause.example",
+        jurisdiction="NSW",
         family="prohibited",
         ref=SectionRef("act-2010-042", "19"),
         applies_from=date(2020, 1, 1),
