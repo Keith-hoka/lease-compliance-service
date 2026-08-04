@@ -25,6 +25,8 @@ class VersionInfo:
 
 
 def _get(url: str) -> httpx.Response:
+    """One polite remote GET; every live request pauses so the WAF stays calm."""
+    time.sleep(FETCH_PAUSE_SECONDS)
     response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=30, follow_redirects=True)
     response.raise_for_status()
     return response
@@ -81,6 +83,8 @@ def docx_url(landing_url: str, number: str) -> str:
         and href.endswith(".docx")
         and "authorised" not in href
     ]
+    if not docx:
+        raise ValueError(f"no docx link on {landing_url}/{number}; content links: {candidates!r}")
     numbered = [href for href in docx if number in href.rsplit("/", 1)[-1]]
     return numbered[0] if numbered else docx[0]
 
@@ -92,5 +96,4 @@ def fetch_docx(url: str, cache_path: Path) -> bytes:
     data = _get(url).content
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_bytes(data)
-    time.sleep(FETCH_PAUSE_SECONDS)
     return data

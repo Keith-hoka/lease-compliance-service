@@ -1,10 +1,17 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
 import respx
 from httpx import Response
 
 from app.ingest.fetcher_vic import VersionInfo, docx_url, fetch_docx, list_versions
+
+
+@pytest.fixture(autouse=True)
+def no_fetch_pause(monkeypatch):
+    monkeypatch.setattr("app.ingest.fetcher_vic.FETCH_PAUSE_SECONDS", 0)
+
 
 LANDING = "https://www.legislation.vic.gov.au/in-force/acts/residential-tenancies-act-1997"
 
@@ -76,8 +83,7 @@ def test_docx_url_prefers_file_carrying_the_version_number():
 
 
 @respx.mock
-def test_fetch_docx_caches(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("app.ingest.fetcher_vic.FETCH_PAUSE_SECONDS", 0)
+def test_fetch_docx_caches(tmp_path: Path):
     url = "https://content.legislation.vic.gov.au/files/97-109a113.docx"
     route = respx.get(url).mock(return_value=Response(200, content=b"DOCXBYTES"))
     cache = tmp_path / "vic" / "residential-tenancies-act-1997" / "113.docx"
