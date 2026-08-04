@@ -1,0 +1,185 @@
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+from itertools import pairwise
+
+from app.rules.base import CheckResult, Rule, SectionRef, to_weekly_rent
+from app.schemas.lease import LeaseInput
+
+ACT = "residential-tenancies-act-1997"
+REGS = "residential-tenancies-regulations-2021"
+
+RENT_THRESHOLD_WEEKLY = Decimal(900)
+FREQ_COMMENCED = date(2020, 4, 6)
+YEAR = timedelta(days=365)
+
+
+def _monthly_rent(lease: LeaseInput) -> Decimal:
+    weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
+    return (weekly * 52 / 12).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _bond_check(lease: LeaseInput) -> CheckResult:
+    """s 31(1)(a): a person "must not demand or accept ... a bond the total of which
+    exceeds the amount of rent payable under the residential rental agreement for
+    one month"; s 31(3): subsection (1) "does not apply ... if the weekly amount of
+    rent payable under the agreement exceeds the prescribed amount"; reg 17: "the
+    prescribed amount is $900" (corpus text as at 2026-08-04).
+    """
+    weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
+    monthly = _monthly_rent(lease)
+    evidence = {
+        "fields": {"bond_amount": str(lease.bond_amount)},
+        "computed": {"weekly_rent": str(weekly), "max_bond": str(monthly)},
+    }
+    if weekly > RENT_THRESHOLD_WEEKLY:
+        return (
+            "skipped",
+            (
+                f"The one-month bond cap does not apply: weekly rent {weekly} exceeds "
+                f"the prescribed {RENT_THRESHOLD_WEEKLY}."
+            ),
+            evidence,
+        )
+    if lease.bond_amount > monthly:
+        return (
+            "red",
+            f"Bond of {lease.bond_amount} exceeds the one-month maximum of {monthly}.",
+            evidence,
+        )
+    return (
+        "green",
+        f"Bond of {lease.bond_amount} is within the one-month maximum of {monthly}.",
+        evidence,
+    )
+
+
+def _advance_check(lease: LeaseInput) -> CheckResult:
+    """s 40(1): a residential rental provider "must not solicit or otherwise invite
+    a renter to pay rent ... more than 1 month in advance"; s 40(2) disapplies the
+    limit above the reg 17 prescribed weekly amount (corpus text as at 2026-08-04).
+    """
+    weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
+    monthly = _monthly_rent(lease)
+    evidence = {
+        "fields": {"rent_in_advance_amount": str(lease.rent_in_advance_amount)},
+        "computed": {"weekly_rent": str(weekly), "max_advance": str(monthly)},
+    }
+    if weekly > RENT_THRESHOLD_WEEKLY:
+        return (
+            "skipped",
+            (
+                f"The one-month advance cap does not apply: weekly rent {weekly} exceeds "
+                f"the prescribed {RENT_THRESHOLD_WEEKLY}."
+            ),
+            evidence,
+        )
+    if lease.rent_in_advance_amount > monthly:
+        return (
+            "red",
+            (
+                f"Rent in advance of {lease.rent_in_advance_amount} exceeds the one-month "
+                f"maximum of {monthly}."
+            ),
+            evidence,
+        )
+    return (
+        "green",
+        (
+            f"Rent in advance of {lease.rent_in_advance_amount} is within the one-month "
+            f"maximum of {monthly}."
+        ),
+        evidence,
+    )
+
+
+def _frequency_check(lease: LeaseInput) -> CheckResult:
+    """s 44(4A): a residential rental provider "must not increase the rent payable
+    under a residential rental agreement at intervals of less than 12 months"
+    (corpus text as at 2026-08-04). FREQ_COMMENCED is pinned to 2020-04-06, the
+    earliest version the corpus carries for s 44: that version already states
+    the 12-month interval, and its own amendment note records (4A) as inserted
+    by No. 45/2002 s 12(2), predating the corpus's coverage. The corpus shows no
+    in-force / not-in-force flip at 2021-03-29; that boundary only renames
+    "landlord" and "tenant" to "residential rental provider" and "renter". The
+    pre-reform 6-month interval era predates the corpus and is not modelled.
+    """
+    dates = sorted(i.effective_on for i in lease.rent_increases)
+    evidence = {"fields": {"rent_increases": [str(d) for d in dates]}}
+    for earlier, later in pairwise(dates):
+        if later - earlier < YEAR:
+            return (
+                "red",
+                f"Rent increases on {earlier} and {later} are less than 12 months apart.",
+                evidence,
+            )
+    return ("green", "All rent increases are at least 12 months apart.", evidence)
+
+
+def _fixed_term_check(lease: LeaseInput) -> CheckResult:
+    """s 44(4): under a fixed term agreement the rent must not be increased before
+    the term ends unless the agreement provides for the increase (a specified
+    amount or method) (corpus text as at 2026-08-04).
+    """
+    in_term = [
+        i.effective_on
+        for i in lease.rent_increases
+        if lease.start_date <= i.effective_on <= lease.end_date
+    ]
+    evidence = {
+        "fields": {
+            "fixed_term_increase_in_agreement": str(lease.fixed_term_increase_in_agreement),
+            "in_term_increases": [str(d) for d in in_term],
+        }
+    }
+    if in_term and not lease.fixed_term_increase_in_agreement:
+        return (
+            "red",
+            (
+                f"Rent increased during the fixed term ({in_term[0]}) without a provision "
+                "in the agreement."
+            ),
+            evidence,
+        )
+    if in_term:
+        return ("green", "In-term rent increases are provided for in the agreement.", evidence)
+    return ("green", "No rent increases fall inside the fixed term.", evidence)
+
+
+VIC_RULES = [
+    Rule(
+        rule_id="vic.bond_max_1_month",
+        jurisdiction="VIC",
+        citations=[SectionRef(ACT, "31"), SectionRef(REGS, "17")],
+        applies_from=None,
+        applies_to=None,
+        required_inputs=["bond_amount"],
+        check=_bond_check,
+    ),
+    Rule(
+        rule_id="vic.advance_max_1_month",
+        jurisdiction="VIC",
+        citations=[SectionRef(ACT, "40"), SectionRef(REGS, "17")],
+        applies_from=None,
+        applies_to=None,
+        required_inputs=["rent_in_advance_amount"],
+        check=_advance_check,
+    ),
+    Rule(
+        rule_id="vic.rent_increase_frequency",
+        jurisdiction="VIC",
+        citations=[SectionRef(ACT, "44")],
+        applies_from=FREQ_COMMENCED,
+        applies_to=None,
+        required_inputs=["rent_increases"],
+        check=_frequency_check,
+    ),
+    Rule(
+        rule_id="vic.fixed_term_increase_provision",
+        jurisdiction="VIC",
+        citations=[SectionRef(ACT, "44")],
+        applies_from=None,
+        applies_to=None,
+        required_inputs=["rent_increases", "fixed_term_increase_in_agreement", "end_date"],
+        check=_fixed_term_check,
+    ),
+]
