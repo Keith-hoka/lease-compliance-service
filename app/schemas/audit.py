@@ -9,7 +9,7 @@ from app.schemas.lease import LeaseInput
 
 
 class AuditCreate(BaseModel):
-    jurisdiction: Literal["NSW"]
+    jurisdiction: Literal["NSW", "VIC"]
     as_at: date | None = None
     client_ref: str | None = None
     lease: LeaseInput

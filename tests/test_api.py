@@ -65,7 +65,7 @@ async def test_create_and_get_audit(client, seeded):
 
 
 async def test_unknown_jurisdiction_is_422(client, seeded):
-    bad = dict(AUDIT_BODY, jurisdiction="VIC")
+    bad = dict(AUDIT_BODY, jurisdiction="QLD")
     assert (await client.post("/v1/audits", json=bad, headers=KEY)).status_code == 422
 
 
@@ -174,3 +174,30 @@ async def test_list_audits_is_tenant_scoped(client, seeded):
 
 async def test_list_audits_requires_client_ref(client):
     assert (await client.get("/v1/audits", headers=KEY)).status_code == 422
+
+
+async def test_vic_audit_accepted_and_clause_audit_still_nsw_only(client, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "anthropic_api_key", "unit-test-key")
+    body = {
+        "jurisdiction": "VIC",
+        "lease": {
+            "rent_amount": "500",
+            "rent_frequency": "weekly",
+            "start_date": "2026-01-01",
+            "bond_amount": "9000",
+        },
+    }
+    response = await client.post("/v1/audits", json=body, headers=KEY)
+    assert response.status_code == 201
+    findings = {f["rule_id"]: f for f in response.json()["findings"]}
+    assert all(rule_id.startswith("vic.") for rule_id in findings)
+
+    clause = await client.post(
+        "/v1/clause-audits",
+        data={"payload": '{"jurisdiction": "VIC"}'},
+        files={"file": ("l.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers=KEY,
+    )
+    assert clause.status_code == 422
