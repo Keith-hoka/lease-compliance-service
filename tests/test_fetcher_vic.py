@@ -42,7 +42,7 @@ def test_list_versions_parses_rows_ascending():
 
 
 @respx.mock
-def test_same_date_versions_order_by_number():
+def test_same_date_versions_keep_the_newest():
     html = f"""
     <html><body>
       <a href="{LANDING}/200">1 May 2024 200 Superseded</a>
@@ -51,7 +51,7 @@ def test_same_date_versions_order_by_number():
     """
     respx.get(LANDING).mock(return_value=Response(200, text=html))
     versions = list_versions(LANDING)
-    assert [v.number for v in versions] == ["199", "200"]
+    assert [v.number for v in versions] == ["200"]
 
 
 @respx.mock

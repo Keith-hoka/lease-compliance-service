@@ -1,6 +1,8 @@
 """Ingest each instrument's full point-in-time history: fetch, parse, load.
 
 Usage: uv run python -m app.ingest {nsw|vic} [--limit-versions N]
+
+--limit-versions takes the OLDEST N versions for nsw, the NEWEST N for vic.
 """
 
 import argparse
@@ -10,7 +12,7 @@ from pathlib import Path
 
 from app.core.db import async_session_factory
 from app.ingest.fetcher import fetch_landing, fetch_versions, parse_version_dates
-from app.ingest.fetcher_vic import docx_url, fetch_docx, list_versions
+from app.ingest.fetcher_vic import VIC_CACHE_ROOT, docx_url, fetch_docx, list_versions
 from app.ingest.loader import load_version
 from app.ingest.parser import parse_whole_act
 from app.ingest.parser_vic import parse_docx
@@ -60,7 +62,7 @@ async def run_vic(limit_versions: int | None) -> None:
         versions = await asyncio.to_thread(list_versions, instrument["landing_url"])
         if limit_versions:
             versions = versions[-limit_versions:]
-        cache_dir = Path("data/raw/vic") / instrument["slug"]
+        cache_dir = VIC_CACHE_ROOT / instrument["slug"]
         async with async_session_factory() as session:
             await load_all_vic(session, instrument, versions, cache_dir)
 

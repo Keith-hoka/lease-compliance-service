@@ -13,15 +13,13 @@ from sqlalchemy import select
 from app.core.dates import sydney_today
 from app.core.db import async_session_factory
 from app.ingest.fetcher import fetch_landing, fetch_versions, parse_version_dates
-from app.ingest.fetcher_vic import docx_url, fetch_docx, list_versions
+from app.ingest.fetcher_vic import VIC_CACHE_ROOT, docx_url, fetch_docx, list_versions
 from app.ingest.loader import load_version
 from app.ingest.parser import parse_whole_act
 from app.ingest.parser_vic import parse_docx
 from app.ingest.registry import INSTRUMENTS, NSW_INSTRUMENTS, ensure_act
 from app.models import IngestedVersion
 from app.monitor.runner import new_version_dates, run_monitor
-
-VIC_CACHE_ROOT = Path("data/raw/vic")
 
 
 async def refresh_corpus() -> None:

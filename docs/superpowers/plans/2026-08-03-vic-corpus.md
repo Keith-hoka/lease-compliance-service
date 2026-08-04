@@ -906,8 +906,45 @@ doc = Document(io.BytesIO(path.read_bytes()))
 styles = collections.Counter(p.style.name for p in doc.paragraphs if p.text.strip())
 for name, count in styles.most_common(30):
     print(f"{count:6} {name}")
+
+print("tables:", len(doc.tables))
+for table in doc.tables[:5]:
+    print([cell.text for cell in table.rows[0].cells])
 EOF
 ```
+
+Before picking the styles, run three more MANDATORY checks against this
+same real file - schedules and endnotes have silently broken other
+jurisdictions' parsers before:
+
+- **Tables.** The script above also prints `len(doc.tables)` and the
+  first row of up to 5 tables. `parse_docx` only walks
+  `document.paragraphs`, so any substantive schedule content that lives
+  in a table is silently dropped by the current parser. If a table
+  holds more than layout/formatting, record what it contains and decide
+  how to handle it before proceeding (likely a parser follow-up, not
+  necessarily blocking this spike).
+- **Heading regexes.** Confirm the real Part/Division/Schedule headings
+  actually match `_PART_RE`/`_DIVISION_RE`/`_SCHEDULE_RE` in
+  `app/ingest/parser_vic.py` - all three require an em dash with no
+  surrounding space (e.g. `Part 2—Tenancy agreements`). Print a few real
+  headings and eyeball them; a spaced em dash or a hyphen instead fails
+  every one of these regexes silently (no match, no error - the heading
+  just gets read as ordinary body text).
+- **Endnotes.** Confirm the endnotes section's own heading paragraph is
+  the literal text `Endnotes` - `parse_docx` stops parsing on an exact
+  string match. Print the paragraph text at that point in the real
+  document instead of assuming it matches.
+
+Also expect the loader's duplicate-section-number guard
+(`app/ingest/loader.py::load_version`, added in the final review fix
+wave) to fire on schedules: a `Schedule 1` clause numbered `1` collides
+with the Act's own section `1`, since `parse_docx` keys both by
+`section_no` alone with no schedule qualifier. Decide the schedule
+keying from what the real files show - either qualify schedule clause
+numbers in the parser (e.g. `S1-1`) or skip schedule clause splitting
+for now - and implement that choice before the section-count
+verification below, or the guard will raise.
 
 Read the output; identify the style used by section-heading paragraphs
 (cross-check by printing a few paragraphs of that style). Set
@@ -916,7 +953,7 @@ names found (both instruments may differ - include both). Re-run the
 limit-1 ingest (delete the two ingested rows first: simplest is
 `uv run alembic ...`? No - just drop and re-create the local dev
 database content for these acts:
-`psql`-level `delete from sections where act_id in (select id from acts where jurisdiction='VIC'); delete from ingested_versions where act_id in (...); delete from acts where jurisdiction='VIC';`
+`psql`-level `delete from sections where act_id in (select id from acts where jurisdiction='VIC'); delete from ingested_versions where act_id in (select id from acts where jurisdiction='VIC'); delete from acts where jurisdiction='VIC';`
 via `docker exec rental_management_app-db-1 psql -U rental lease_compliance -c "..."`)
 then verify the section count with the pinned styles: version 113 must
 yield more than 400 sections and include 27B with heading
@@ -943,14 +980,34 @@ Commit the pinned constant: "Pin VIC section heading styles from the spike"; pus
 
 - [ ] **Step 2: Local full ingest**
 
+Step 1's spike ingested only version 113 in isolation, so
+`ingested_versions` already has a VIC row dated 113's effective date,
+and any section whose content happens not to differ between 113 and its
+neighbours is sitting open with `valid_from` pinned to 113 instead of
+the version that actually introduced it. Clean the VIC rows first so
+the full ingest starts from nothing - otherwise the loader's
+out-of-order guard (`app/ingest/loader.py::load_version`) rejects every
+version older than 113 as an out-of-order ingest:
+
 ```bash
+docker exec rental_management_app-db-1 psql -U rental lease_compliance -c "
+delete from sections where act_id in (select id from acts where jurisdiction='VIC');
+delete from ingested_versions where act_id in (select id from acts where jurisdiction='VIC');
+delete from acts where jurisdiction='VIC';
+"
 uv run python -m app.ingest vic
 ```
 
 Expected: every version of both instruments loads; spot-check the
 LoadStats lines look like NSW's (inserts on amendment versions, zeros on
 no-change versions). Re-run the 27B check above plus the pre-commencement
-negative: `section_at(..., "27B", date(2020, 6, 1))` returns None.
+negative: `section_at(..., "27B", date(2020, 6, 1))` returns None. Also
+check a mid-history version actually landed, not just the latest:
+`section_at("residential-tenancies-act-1997", "1", date(2023, 1, 1))` is
+not `None`. Spot-check the Regulations instrument too:
+`section_at("residential-tenancies-regulations-2021", "5", date(2026, 8, 3))`
+is not `None` (adjust the section number at the spike if regulation 5
+does not exist in the real instrument).
 
 - [ ] **Step 3: Production ingest**
 
@@ -968,12 +1025,14 @@ Expected: cache-warm run, minutes, no site traffic beyond version pages.
 - [ ] **Step 4: Production acceptance pair**
 
 ```bash
-APIKEY=$(ssh deploy@168.144.169.66 "grep '^API_KEYS=' /opt/lease-compliance/.env | cut -d= -f2- | cut -d: -f1")
+APIKEY=$(grep '^COMPLIANCE_API_KEY=' /Users/keithho/LLMProjects/rental_management_app/backend/.env | cut -d= -f2-)
 curl -s "https://api.leasekoala.com/v1/legislation/sections?act=residential-tenancies-act-1997&section_no=27B&as_at=2026-08-03" -H "X-API-Key: ${APIKEY}" | head -c 200
 curl -s -o /dev/null -w "%{http_code}\n" "https://api.leasekoala.com/v1/legislation/sections?act=residential-tenancies-act-1997&section_no=27B&as_at=2020-06-01" -H "X-API-Key: ${APIKEY}"
 ```
 
-(The stored production key belongs to rentalapp; any active key works.)
+(Auth went DB-only in the tenant work; `API_KEYS` no longer exists on
+the server's `.env`. The rentalapp SaaS keeps its own active key in its
+backend `.env` as `COMPLIANCE_API_KEY`; any active key works.)
 Expected: the first returns the 27B JSON with heading "Prohibited
 terms"; the second prints 404.
 

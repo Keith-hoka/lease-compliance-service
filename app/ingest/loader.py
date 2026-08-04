@@ -1,8 +1,9 @@
 import hashlib
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingest.parser import ParsedSection
@@ -27,6 +28,27 @@ async def load_version(
     already = await session.get(IngestedVersion, (act_id, version_date))
     if already is not None:
         return LoadStats(inserted=0, closed=0, skipped=True)
+
+    if not sections:
+        raise ValueError(f"act {act_id}: version {version_date} parsed zero sections")
+
+    counts = Counter(s.section_no for s in sections)
+    dupes = [n for n, c in counts.items() if c > 1]
+    if dupes:
+        raise ValueError(
+            f"act {act_id}: version {version_date} has duplicate section numbers: {dupes}"
+        )
+
+    max_ingested = (
+        await session.execute(
+            select(func.max(IngestedVersion.version_date)).where(IngestedVersion.act_id == act_id)
+        )
+    ).scalar_one_or_none()
+    if max_ingested is not None and version_date < max_ingested:
+        raise ValueError(
+            f"act {act_id}: out-of-order ingest - version {version_date} is before "
+            f"latest ingested version {max_ingested}"
+        )
 
     open_rows = (
         (

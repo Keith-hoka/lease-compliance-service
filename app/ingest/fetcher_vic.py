@@ -11,6 +11,7 @@ from selectolax.parser import HTMLParser
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 FETCH_PAUSE_SECONDS = 1.0
+VIC_CACHE_ROOT = Path("data/raw/vic")
 
 _DATE_RE = re.compile(r"(\d{1,2} \w+ \d{4})")
 
@@ -39,7 +40,11 @@ def _parse_date(text: str) -> date:
 
 
 def list_versions(landing_url: str) -> list[VersionInfo]:
-    """Version-history rows from the landing page, ascending by date."""
+    """Version-history rows from the landing page, ascending by date.
+
+    When two version numbers share an effective date, only the
+    highest-numbered one is kept - it superseded the other same-day.
+    """
     html = _get(landing_url).text
     row_href = re.compile(rf"^{re.escape(landing_url)}/(\d+)$")
     seen: dict[str, VersionInfo] = {}
@@ -54,7 +59,13 @@ def list_versions(landing_url: str) -> list[VersionInfo]:
         text = node.text()
         status = "In force" if "In force" in text else "Superseded"
         seen[number] = VersionInfo(number, _parse_date(text), status)
-    return sorted(seen.values(), key=lambda v: (v.effective_date, int(v.number)))
+
+    newest_by_date: dict[date, VersionInfo] = {}
+    for version in seen.values():
+        current = newest_by_date.get(version.effective_date)
+        if current is None or int(version.number) > int(current.number):
+            newest_by_date[version.effective_date] = version
+    return sorted(newest_by_date.values(), key=lambda v: (v.effective_date, int(v.number)))
 
 
 def docx_url(landing_url: str, number: str) -> str:
