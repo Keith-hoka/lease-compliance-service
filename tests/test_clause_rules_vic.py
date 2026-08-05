@@ -66,3 +66,28 @@ async def test_every_vic_rule_resolves_on_the_corpus(corpus_session):
 async def test_vic_rules_do_not_resolve_before_commencement(corpus_session):
     citation = await resolve_rule(corpus_session, VIC_PROHIBITED_RULES[0], date(2021, 3, 28))
     assert citation is None
+
+
+def test_vic_golden_covers_every_rule():
+    from tests.golden.clauses_vic import VIC_PROHIBITED_CASES
+
+    by_rule: dict[str, list] = {}
+    for case in VIC_PROHIBITED_CASES:
+        by_rule.setdefault(case.rule_id, []).append(case)
+    rule_ids = {r.rule_id for r in VIC_PROHIBITED_RULES}
+    assert set(by_rule) == rule_ids
+    for rule_id, cases in by_rule.items():
+        reds = [c for c in cases if c.expected == "red"]
+        assert len(reds) >= 3, rule_id
+    greens_required = {
+        "vic.clause.professional_cleaning_required",
+        "vic.clause.professional_cleaning_cost",
+        "vic.clause.third_party_services",
+        "vic.clause.costly_payment_method",
+        "vic.clause.fixed_break_fees",
+        "vic.clause.breach_penalty",
+    }
+    for rule_id in greens_required:
+        assert any(c.expected == "green" for c in by_rule[rule_id]), rule_id
+    case_ids = [c.case_id for c in VIC_PROHIBITED_CASES]
+    assert len(case_ids) == len(set(case_ids))

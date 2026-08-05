@@ -40,9 +40,14 @@ async def eval_session():
             act = (
                 await session.execute(select(Act).where(Act.slug == "act-2010-042"))
             ).scalar_one_or_none()
+            vic_act = (
+                await session.execute(
+                    select(Act).where(Act.slug == "residential-tenancies-act-1997")
+                )
+            ).scalar_one_or_none()
         except (OSError, SQLAlchemyError, asyncpg.PostgresError):
             pytest.skip("corpus store not reachable")
-        if act is None:
+        if act is None or vic_act is None:
             pytest.skip("corpus not ingested")
         yield session
     await engine.dispose()
@@ -93,6 +98,16 @@ async def _score_family(session, runner, rules, cases):
 
 async def test_prohibited_golden(eval_session):
     stats = await _score_family(eval_session, run_prohibited, PROHIBITED_RULES, PROHIBITED_CASES)
+    _assert_thresholds(stats)
+
+
+async def test_vic_prohibited_golden(eval_session):
+    from app.clause_audit.rules_vic import VIC_PROHIBITED_RULES
+    from tests.golden.clauses_vic import VIC_PROHIBITED_CASES
+
+    stats = await _score_family(
+        eval_session, run_prohibited, VIC_PROHIBITED_RULES, VIC_PROHIBITED_CASES
+    )
     _assert_thresholds(stats)
 
 
