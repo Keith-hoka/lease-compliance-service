@@ -53,8 +53,8 @@ VIC_PROHIBITED_CASES = [
         "vic-breakfee-red-schedule",
         "vic.clause.fixed_break_fees",
         _PREAMBLE + "Where the renter ends the agreement early by giving "
-        "the required notice, a fixed administration charge of two weeks "
-        "rent plus a $250 advertising levy applies, payable on vacating.",
+        "the required notice, a fixed administration charge of $600 plus "
+        "a $250 advertising levy applies, payable on vacating.",
         "red",
     ),
     ClauseCase(

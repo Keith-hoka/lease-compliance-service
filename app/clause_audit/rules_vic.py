@@ -106,7 +106,10 @@ VIC_PROHIBITED_RULES = [
     _act_rule(
         "vic.clause.professional_cleaning_required",
         "A term with the effect that all or part of the premises must be "
-        "professionally cleaned at the end of the tenancy (s 27B(1)(d))." + _CLEANING_CARVE_OUT,
+        "professionally cleaned at the end of the tenancy (s 27B(1)(d)). "
+        "Judge only terms that oblige the cleaning itself; a term that "
+        "only allocates the cost of cleaning to the renter is s 27B(1)(e), "
+        "not this effect." + _CLEANING_CARVE_OUT,
     ),
     _act_rule(
         "vic.clause.professional_cleaning_cost",
@@ -154,8 +157,10 @@ VIC_PROHIBITED_RULES = [
         "vic.clause.third_party_services",
         "A term which requires the renter to use the services of a third "
         "party service provider nominated by the residential rental "
-        "provider (reg 11(e)). Not breached where the nominated service is "
-        "an embedded network.",
+        "provider (reg 11(e)). Only services of a person other than the "
+        "rental provider count: a payment portal, app or facility operated "
+        "by the rental provider itself is not this effect. Not breached "
+        "where the nominated service is an embedded network.",
     ),
     _reg_rule(
         "vic.clause.safety_maintenance_transfer",
