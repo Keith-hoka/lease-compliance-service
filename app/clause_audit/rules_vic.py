@@ -34,7 +34,10 @@ condition they were in immediately before the start of the tenancy,
 taking into account fair wear and tear".
 
 Regulations reg 11 prescribes nine further prohibited terms for
-s 27B(1)(g); each rule below quotes its effect in its question.
+s 27B(1)(g); each rule below quotes its effect in its question. Two
+questions additionally carry eval-derived disambiguators (cleaning-required
+vs cost-only terms; provider-operated payment channels), recorded in the
+2026-08-05 eval ledger.
 
 Excluded and recorded in docs/rule-candidates.md: s 27 invalid
 additional terms, s 28 harsh and unconscionable terms, regs 39/53/73

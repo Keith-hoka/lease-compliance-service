@@ -141,6 +141,7 @@ async def test_vic_job_runs_prohibited_and_fields_only(db_session, seeded_s27b, 
     from app.clause_audit import rules_vic
 
     monkeypatch.setattr(rules_vic, "VIC_PROHIBITED_RULES", [VIC_RULE])
+    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [RULE])
     called = []
 
     async def judge(doc, instruction, output_model):
@@ -173,3 +174,57 @@ async def test_vic_job_runs_prohibited_and_fields_only(db_session, seeded_s27b, 
 
     assert [f["rule_id"] for f in job.findings] == ["vic.clause.renter_insurance"]
     assert called == ["ProhibitedOutput", "FieldsOutput"]
+
+
+MANDATORY_RULE = ClauseRule(
+    rule_id="nsw.clause.mandatory_probe",
+    jurisdiction="NSW",
+    family="mandatory",
+    ref=SectionRef("act-2010-042", "19"),
+    applies_from=date(2011, 1, 31),
+    applies_to=None,
+    question="The agreement must state how rent is to be paid.",
+)
+
+
+async def test_nsw_job_runs_all_three_families(db_session, seeded_s19, monkeypatch):
+    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [MANDATORY_RULE])
+    called = []
+
+    async def judge(doc, instruction, output_model):
+        called.append(output_model.__name__)
+        if output_model.__name__ == "FieldsOutput":
+            return output_model(fields=[])
+        if output_model.__name__ == "MandatoryOutput":
+            return output_model(
+                items=[
+                    {
+                        "rule_id": "nsw.clause.mandatory_probe",
+                        "verdict": "green",
+                        "reasoning": "term present",
+                        "clause_quote": CARPET,
+                    }
+                ]
+            )
+        return output_model(
+            items=[
+                {
+                    "rule_id": "nsw.clause.carpet_cleaning",
+                    "verdict": "red",
+                    "reasoning": "found",
+                    "clause_quote": CARPET,
+                }
+            ]
+        )
+
+    job = _job(lease={"rent_amount": "560"})
+    db_session.add(job)
+    await db_session.flush()
+
+    await process_job(db_session, job, judge)
+
+    assert called == ["ProhibitedOutput", "MandatoryOutput", "FieldsOutput"]
+    assert [f["rule_id"] for f in job.findings] == [
+        "nsw.clause.carpet_cleaning",
+        "nsw.clause.mandatory_probe",
+    ]
