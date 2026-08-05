@@ -292,10 +292,10 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-unreviewed-red-paraphrase",
         "vic.clause.unreviewed_contract",
-        _PREAMBLE + "The renter is taken to have accepted whatever "
-        "conditions the owners corporation imposes from time to time, "
-        "even though a copy of those conditions has not been shown to "
-        "the renter.",
+        _PREAMBLE + "The renter is taken to have accepted whatever terms "
+        "the owners corporation has agreed under its building management "
+        "contract from time to time, even though a copy of that contract "
+        "has not been shown to the renter.",
         "red",
     ),
     # --- vic.clause.renter_indemnity ---
@@ -371,9 +371,9 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-payment-red-paraphrase",
         "vic.clause.costly_payment_method",
-        _PREAMBLE + "Advance rent payments are accepted only through the "
-        "rental provider's online payment portal, which applies a $2.95 "
-        "processing fee to every transaction.",
+        _PREAMBLE + "Rent must be paid one month in advance by bank "
+        "cheque or money order, obtained at the renter's own cost, "
+        "delivered to the rental provider's office.",
         "red",
     ),
     # --- vic.clause.third_party_services ---
