@@ -44,23 +44,24 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-breakfee-red-flat",
         "vic.clause.fixed_break_fees",
-        _PREAMBLE + "If the renter ends this agreement before the end of the "
-        "fixed term, the renter must pay a lease break fee of $1,500.",
+        _PREAMBLE + "If the renter gives notice of intention to vacate and "
+        "ends the agreement before the end of the fixed term, a lease "
+        "break fee of $1,500 applies.",
         "red",
     ),
     ClauseCase(
         "vic-breakfee-red-schedule",
         "vic.clause.fixed_break_fees",
-        _PREAMBLE + "Early termination attracts a fixed administration charge "
-        "of two weeks rent plus a $250 advertising levy, payable on vacating.",
+        _PREAMBLE + "Where the renter ends the agreement early by giving "
+        "the required notice, a fixed administration charge of two weeks "
+        "rent plus a $250 advertising levy applies, payable on vacating.",
         "red",
     ),
     ClauseCase(
         "vic-breakfee-red-paraphrase",
         "vic.clause.fixed_break_fees",
-        _PREAMBLE + "Should the renter vacate prior to the expiry date a "
-        "set amount of $990 becomes due to cover reletting, regardless of "
-        "when a replacement renter is found.",
+        _PREAMBLE + "Should the renter give notice and vacate prior to "
+        "the expiry date, a set reletting amount of $990 becomes due.",
         "red",
     ),
     ClauseCase(
@@ -131,10 +132,10 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-liabexempt-red-agent",
         "vic.clause.provider_liability_exemption",
-        _PREAMBLE + "Neither the rental provider's agent nor any person "
-        "acting on the agent's behalf will be liable for damage to the "
-        "renter's belongings, even where that damage results from the "
-        "agent's own negligence.",
+        _PREAMBLE + "The rental provider will not be liable for any act "
+        "or omission of the rental provider's agent, or of any person "
+        "acting on the agent's behalf, including damage to the renter's "
+        "belongings caused by that person's negligence.",
         "red",
     ),
     ClauseCase(
@@ -208,9 +209,8 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-cleaningcost-red-bond-deduction",
         "vic.clause.professional_cleaning_cost",
-        _PREAMBLE + "The rental provider may deduct the cost of "
-        "professional cleaning carried out at the end of the tenancy from "
-        "the renter's bond.",
+        _PREAMBLE + "The cost of professional cleaning carried out at "
+        "the end of the tenancy will be deducted from the renter's bond.",
         "red",
     ),
     ClauseCase(
@@ -276,28 +276,26 @@ VIC_PROHIBITED_CASES = [
         "vic-unreviewed-red-plain",
         "vic.clause.unreviewed_contract",
         _PREAMBLE + "The renter agrees to be bound by the owners "
-        "corporation rules for the building, as amended from time to "
-        "time, whether or not a copy has been provided to the renter "
-        "before signing this agreement.",
+        "corporation's shared-services agreement with the building "
+        "operator, as amended from time to time, without being provided "
+        "a copy before entering this agreement.",
         "red",
     ),
     ClauseCase(
         "vic-unreviewed-red-service-contract",
         "vic.clause.unreviewed_contract",
-        _PREAMBLE + "The renter agrees to be bound by the terms of the "
-        "building's waste management agreement with CleanCity Services, as "
-        "amended from time to time, notwithstanding that the renter has "
-        "not been given an opportunity to read that agreement before "
-        "signing this lease.",
+        _PREAMBLE + "The renter is bound by the terms of the building's "
+        "car parking licence agreement as in force from time to time, a "
+        "copy of which need not be provided before signing.",
         "red",
     ),
     ClauseCase(
         "vic-unreviewed-red-paraphrase",
         "vic.clause.unreviewed_contract",
         _PREAMBLE + "The renter is taken to have accepted whatever "
-        "conditions the body corporate imposes from time to time, even "
-        "though a copy of those conditions has not been shown to the "
-        "renter.",
+        "conditions the owners corporation imposes from time to time, "
+        "even though a copy of those conditions has not been shown to "
+        "the renter.",
         "red",
     ),
     # --- vic.clause.renter_indemnity ---
@@ -315,7 +313,7 @@ VIC_PROHIBITED_CASES = [
         _PREAMBLE + "The renter must indemnify and keep indemnified the "
         "rental provider and the rental provider's agent from and against "
         "all actions, claims and costs of whatsoever nature arising out of "
-        "this agreement.",
+        "the renter's use or occupation of the premises.",
         "red",
     ),
     ClauseCase(
@@ -365,17 +363,17 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-payment-red-app-fee",
         "vic.clause.costly_payment_method",
-        _PREAMBLE + "The renter must pay rent in advance using the RentPay "
-        "app, which charges the renter a $2.95 service fee on each "
-        "transaction.",
+        _PREAMBLE + "The renter must pay rent in advance using the rental "
+        "provider's own payment app, which charges the renter a $2.95 "
+        "service fee on each transaction.",
         "red",
     ),
     ClauseCase(
         "vic-payment-red-paraphrase",
         "vic.clause.costly_payment_method",
-        _PREAMBLE + "Advance rent payments are only accepted through "
-        "PayEasy, a third-party payment platform that adds its own "
-        "transaction charge on top of the rent each time it is used.",
+        _PREAMBLE + "Advance rent payments are accepted only through the "
+        "rental provider's online payment portal, which applies a $2.95 "
+        "processing fee to every transaction.",
         "red",
     ),
     # --- vic.clause.third_party_services ---
