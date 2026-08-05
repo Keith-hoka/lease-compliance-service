@@ -176,7 +176,7 @@ async def test_list_audits_requires_client_ref(client):
     assert (await client.get("/v1/audits", headers=KEY)).status_code == 422
 
 
-async def test_vic_audit_accepted_and_clause_audit_still_nsw_only(client, monkeypatch):
+async def test_vic_audit_and_clause_audit_both_accepted(client, monkeypatch):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "anthropic_api_key", "unit-test-key")
@@ -201,4 +201,5 @@ async def test_vic_audit_accepted_and_clause_audit_still_nsw_only(client, monkey
         files={"file": ("l.pdf", b"%PDF-1.4 fake", "application/pdf")},
         headers=KEY,
     )
-    assert clause.status_code == 422
+    assert clause.status_code == 202
+    assert clause.json()["jurisdiction"] == "VIC"

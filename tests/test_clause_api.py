@@ -229,3 +229,17 @@ async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeyp
     assert body["findings"][0]["verdict"] == "red"
     assert body["findings"][0]["clause_quote"] == carpet
     assert body["findings"][0]["citations"][0]["act"] == "Residential Tenancies Act 2010"
+
+
+async def test_vic_clause_audit_accepted(client, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "anthropic_api_key", "unit-test-key")
+    response = await client.post(
+        "/v1/clause-audits",
+        data={"payload": '{"jurisdiction": "VIC"}'},
+        files={"file": ("l.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers=KEY,
+    )
+    assert response.status_code == 202
+    assert response.json()["jurisdiction"] == "VIC"

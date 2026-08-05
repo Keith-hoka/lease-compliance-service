@@ -39,7 +39,7 @@ class ClauseLeaseInput(BaseModel):
 class ClauseAuditCreate(BaseModel):
     """The JSON `payload` part of the multipart POST."""
 
-    jurisdiction: Literal["NSW"]
+    jurisdiction: Literal["NSW", "VIC"]
     as_at: date | None = None
     client_ref: str | None = None
     lease: ClauseLeaseInput | None = None

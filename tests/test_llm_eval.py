@@ -69,7 +69,9 @@ async def _score_family(session, runner, rules, cases):
     rule_ids = {r.rule_id for r in rules}
     stats: dict[str, dict] = defaultdict(lambda: {"tp": 0, "fp": 0, "miss": 0, "yellow": 0})
     for case in cases:
-        findings = await runner(judge, session, DocumentInput(kind="text", text=case.text), AS_AT)
+        findings = await runner(
+            judge, session, DocumentInput(kind="text", text=case.text), AS_AT, rules
+        )
         for finding in findings:
             if finding.rule_id not in rule_ids or finding.verdict == "skipped":
                 continue
@@ -122,7 +124,7 @@ SEEDED = (
 async def test_pdf_smoke_text_layer(eval_session):
     doc = document_input("pdf", make_text_pdf(SEEDED))
     assert doc.kind == "text"
-    findings = await run_prohibited(make_judge(), eval_session, doc, AS_AT)
+    findings = await run_prohibited(make_judge(), eval_session, doc, AS_AT, PROHIBITED_RULES)
     carpet = next(f for f in findings if f.rule_id == "nsw.clause.carpet_cleaning")
     assert carpet.verdict == "red"
 
@@ -130,6 +132,6 @@ async def test_pdf_smoke_text_layer(eval_session):
 async def test_pdf_smoke_scanned(eval_session):
     doc = document_input("pdf", make_scanned_pdf(SEEDED))
     assert doc.kind == "pdf"
-    findings = await run_prohibited(make_judge(), eval_session, doc, AS_AT)
+    findings = await run_prohibited(make_judge(), eval_session, doc, AS_AT, PROHIBITED_RULES)
     carpet = next(f for f in findings if f.rule_id == "nsw.clause.carpet_cleaning")
     assert carpet.verdict == "red"

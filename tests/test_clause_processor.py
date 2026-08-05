@@ -105,3 +105,71 @@ async def test_process_job_runs_fields_only_with_lease(fake_judge, db_session, s
     assert job.discrepancies == [
         {"field": "rent_amount", "document_value": "$520", "submitted_value": "560"}
     ]
+
+
+VIC_RULE = ClauseRule(
+    rule_id="vic.clause.renter_insurance",
+    jurisdiction="VIC",
+    family="prohibited",
+    ref=SectionRef("residential-tenancies-act-1997", "27B"),
+    applies_from=date(2021, 3, 29),
+    applies_to=None,
+    question="A term requiring the renter to take out insurance.",
+)
+
+
+@pytest.fixture
+async def seeded_s27b(db_session):
+    act = Act(
+        jurisdiction="VIC",
+        slug="residential-tenancies-act-1997",
+        title="Residential Tenancies Act 1997",
+        source_url="x",
+    )
+    db_session.add(act)
+    await db_session.flush()
+    await load_version(
+        db_session,
+        act.id,
+        date(2021, 3, 29),
+        [ParsedSection("27B", "Prohibited terms-general", "must not include", "Part 2", None)],
+    )
+    await db_session.commit()
+
+
+async def test_vic_job_runs_prohibited_and_fields_only(db_session, seeded_s27b, monkeypatch):
+    from app.clause_audit import rules_vic
+
+    monkeypatch.setattr(rules_vic, "VIC_PROHIBITED_RULES", [VIC_RULE])
+    called = []
+
+    async def judge(doc, instruction, output_model):
+        called.append(output_model.__name__)
+        if output_model.__name__ == "FieldsOutput":
+            return output_model(fields=[])
+        return output_model(
+            items=[
+                {
+                    "rule_id": "vic.clause.renter_insurance",
+                    "verdict": "green",
+                    "reasoning": "no such term",
+                    "clause_quote": None,
+                }
+            ]
+        )
+
+    job = _job(
+        jurisdiction="VIC",
+        as_at=date(2026, 8, 5),
+        engine_version="1.4.0",
+        model="m",
+        document=b"RESIDENTIAL RENTAL AGREEMENT. Rent is payable monthly.",
+        lease={"rent_amount": "2000"},
+    )
+    db_session.add(job)
+    await db_session.flush()
+
+    await process_job(db_session, job, judge)
+
+    assert [f["rule_id"] for f in job.findings] == ["vic.clause.renter_insurance"]
+    assert called == ["ProhibitedOutput", "FieldsOutput"]

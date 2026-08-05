@@ -104,14 +104,18 @@ async def _run_clause_family(
 
 
 async def run_prohibited(
-    judge: JudgeFn, session: AsyncSession, doc: DocumentInput, as_at: date
+    judge: JudgeFn,
+    session: AsyncSession,
+    doc: DocumentInput,
+    as_at: date,
+    rules: list[clause_rules.ClauseRule],
 ) -> list[ClauseFinding]:
     return await _run_clause_family(
         judge,
         session,
         doc,
         as_at,
-        clause_rules.PROHIBITED_RULES,
+        rules,
         "prohibited terms",
         "ProhibitedOutput",
         quote_verdict="red",
@@ -120,14 +124,18 @@ async def run_prohibited(
 
 
 async def run_mandatory(
-    judge: JudgeFn, session: AsyncSession, doc: DocumentInput, as_at: date
+    judge: JudgeFn,
+    session: AsyncSession,
+    doc: DocumentInput,
+    as_at: date,
+    rules: list[clause_rules.ClauseRule],
 ) -> list[ClauseFinding]:
     return await _run_clause_family(
         judge,
         session,
         doc,
         as_at,
-        clause_rules.MANDATORY_RULES,
+        rules,
         "mandatory terms",
         "MandatoryOutput",
         quote_verdict="green",

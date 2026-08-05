@@ -69,7 +69,9 @@ def _item(verdict, quote):
 
 async def test_red_with_matching_quote(fake_judge, db_session, seeded_s19):
     fake_judge.responses["ProhibitedOutput"] = _item("red", CARPET)
-    findings = await run_prohibited(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, DOC, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "red"
     assert findings[0].clause_quote == CARPET
     assert findings[0].citations[0].act == "Residential Tenancies Act 2010"
@@ -77,33 +79,43 @@ async def test_red_with_matching_quote(fake_judge, db_session, seeded_s19):
 
 async def test_red_quote_not_in_document_downgrades(fake_judge, db_session, seeded_s19):
     fake_judge.responses["ProhibitedOutput"] = _item("red", "an invented sentence")
-    findings = await run_prohibited(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, DOC, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "yellow"
     assert "quote" in findings[0].summary
 
 
 async def test_red_without_quote_downgrades(fake_judge, db_session, seeded_s19):
     fake_judge.responses["ProhibitedOutput"] = _item("red", None)
-    findings = await run_prohibited(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, DOC, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "yellow"
 
 
 async def test_pdf_path_skips_quote_verification(fake_judge, db_session, seeded_s19):
     fake_judge.responses["ProhibitedOutput"] = _item("red", "anything at all")
     pdf_doc = DocumentInput(kind="pdf", pdf=b"%PDF-fake")
-    findings = await run_prohibited(fake_judge, db_session, pdf_doc, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, pdf_doc, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "red"
 
 
 async def test_missing_item_is_yellow(fake_judge, db_session, seeded_s19):
     fake_judge.responses["ProhibitedOutput"] = {"items": []}
-    findings = await run_prohibited(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, DOC, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "yellow"
     assert "did not report" in findings[0].summary
 
 
 async def test_inactive_rule_is_skipped_without_judging(fake_judge, db_session, seeded_s19):
-    early = await run_prohibited(fake_judge, db_session, DOC, date(2010, 1, 1))
+    early = await run_prohibited(
+        fake_judge, db_session, DOC, date(2010, 1, 1), rules_module.PROHIBITED_RULES
+    )
     assert early[0].verdict == "skipped"
     assert fake_judge.calls == []
 
@@ -119,7 +131,9 @@ async def test_unresolvable_section_is_skipped(fake_judge, db_session, seeded_s1
         question="x",
     )
     monkeypatch.setattr(rules_module, "PROHIBITED_RULES", [ghost])
-    findings = await run_prohibited(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_prohibited(
+        fake_judge, db_session, DOC, AS_AT, rules_module.PROHIBITED_RULES
+    )
     assert findings[0].verdict == "skipped"
     assert fake_judge.calls == []
 
@@ -145,7 +159,7 @@ async def test_mandatory_red_needs_no_quote(fake_judge, db_session, seeded_s19, 
             }
         ]
     }
-    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT, rules_module.MANDATORY_RULES)
     assert findings[0].verdict == "red" and findings[0].clause_quote is None
 
 
@@ -177,7 +191,7 @@ def _mandatory_item(quote):
 async def test_mandatory_green_with_matching_quote(fake_judge, db_session, seeded_s19, monkeypatch):
     monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
     fake_judge.responses["MandatoryOutput"] = _mandatory_item("Rent is payable weekly.")
-    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT, rules_module.MANDATORY_RULES)
     assert findings[0].verdict == "green"
 
 
@@ -186,7 +200,7 @@ async def test_mandatory_green_quote_mismatch_downgrades(
 ):
     monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
     fake_judge.responses["MandatoryOutput"] = _mandatory_item("an invented rent clause")
-    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT, rules_module.MANDATORY_RULES)
     assert findings[0].verdict == "yellow"
     assert "quote" in findings[0].summary
 
@@ -196,7 +210,7 @@ async def test_mandatory_green_without_quote_downgrades(
 ):
     monkeypatch.setattr(rules_module, "MANDATORY_RULES", [_mandatory_rule()])
     fake_judge.responses["MandatoryOutput"] = _mandatory_item(None)
-    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT)
+    findings = await run_mandatory(fake_judge, db_session, DOC, AS_AT, rules_module.MANDATORY_RULES)
     assert findings[0].verdict == "yellow"
 
 

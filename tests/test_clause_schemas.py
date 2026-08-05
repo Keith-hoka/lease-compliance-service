@@ -30,6 +30,8 @@ def test_create_payload_defaults():
     assert body.as_at is None and body.lease is None
 
 
-def test_create_rejects_other_jurisdiction():
+def test_create_accepts_vic_and_rejects_unsupported():
+    body = ClauseAuditCreate.model_validate({"jurisdiction": "VIC"})
+    assert body.jurisdiction == "VIC"
     with pytest.raises(ValidationError):
-        ClauseAuditCreate.model_validate({"jurisdiction": "VIC"})
+        ClauseAuditCreate.model_validate({"jurisdiction": "QLD"})
