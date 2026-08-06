@@ -50,6 +50,20 @@ inside forms does not enter term bodies - python-docx's paragraph
 stream excludes tables, and body tables were already an accepted skip
 at corpus build time. Term bodies are paragraph text.
 
+Three further refinements landed during the Task 2 rebuild, once the
+full historical cache exposed cases the single-version spike above
+didn't cover. Form openers are matched case-insensitively, including
+the Normal-styled exact-text fallback, so both a Normal-styled "Form 5"
+and an all-caps "FORM 9" open their form correctly. A form whose term
+numbering restarts partway through - Form 3A's three independently
+numbered PART sequences, present from version 005 onward - cannot be
+keyed by the continuous-numbering model and is deliberately skipped in
+its entirety, contributing no terms rather than colliding keys. A
+term's after-tab text becomes its heading only when 150 characters or
+fewer once cleaned; longer, free-flowing prose terms instead get an
+empty heading with the full text preserved as the first line of the
+body, so nothing is ever truncated or lost.
+
 ## Rebuild and rollout
 
 The (a) pipeline shape, scoped to one instrument:

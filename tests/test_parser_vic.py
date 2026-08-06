@@ -1,4 +1,5 @@
 import io
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -237,6 +238,120 @@ def test_form_terms_coexist_with_schedule_clauses():
     assert by_no["S1-5"].body_text == "Schedule clause text."
 
 
+def test_form_opener_recognised_when_styled_normal():
+    """Some cached versions style a form's opener paragraph as Normal
+    instead of New Form Heading; a missed opener must not fold the next
+    form's terms into the previous form's keys."""
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 4"),
+            ("New Form Heading", "Condition report"),
+            (None, "1.\tCondition item"),
+            (None, "Condition body."),
+            (None, "Form 5"),
+            ("New Form Heading", "Notice of proposed rent increase"),
+            (None, "1.\tNotice item"),
+            (None, "Notice body."),
+        ]
+    )
+    sections = parse_docx(data)
+    section_nos = [s.section_no for s in sections]
+    assert set(section_nos) == {"S1-F4-T1", "S1-F5-T1"}
+    assert len(section_nos) == 2
+
+    by_no = {s.section_no: s for s in sections}
+    assert by_no["S1-F4-T1"].heading == "Condition item"
+    assert by_no["S1-F4-T1"].body_text == "Condition body."
+    assert by_no["S1-F4-T1"].division == "Form 4 Condition report"
+    assert by_no["S1-F5-T1"].heading == "Notice item"
+    assert by_no["S1-F5-T1"].body_text == "Notice body."
+    assert by_no["S1-F5-T1"].division == "Form 5 Notice of proposed rent increase"
+
+
+def test_form_opener_recognised_when_all_caps():
+    """Some cached versions (005+) style a form's opener paragraph as
+    Normal AND in all caps ("FORM 9"); the exact-text fallback must
+    match case-insensitively, combining with the Normal-style fix."""
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 8"),
+            ("New Form Heading", "Condition report"),
+            (None, "1.\tCondition item"),
+            (None, "Condition body."),
+            (None, "FORM 9"),
+            ("New Form Heading", "Notice of proposed rent increase"),
+            (None, "1.\tNotice item"),
+            (None, "Notice body."),
+        ]
+    )
+    sections = parse_docx(data)
+    section_nos = [s.section_no for s in sections]
+    assert set(section_nos) == {"S1-F8-T1", "S1-F9-T1"}
+    assert len(section_nos) == 2
+
+    by_no = {s.section_no: s for s in sections}
+    assert by_no["S1-F9-T1"].heading == "Notice item"
+    assert by_no["S1-F9-T1"].division == "Form 9 Notice of proposed rent increase"
+
+
+def test_form_with_restarting_numbers_is_skipped_entirely():
+    """A form whose internal numbering restarts (Form 3A's three
+    independently-numbered PART sequences in real cached versions) is
+    unparseable under the continuous-numbering model: it must yield
+    zero terms, while a well-numbered form that follows still parses."""
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 3A"),
+            ("New Form Heading", "Site agreement"),
+            (None, "1.\tFirst item"),
+            (None, "First body."),
+            (None, "2.\tSecond item"),
+            (None, "Second body."),
+            (None, "1.\tRestarted item"),
+            (None, "Restarted body."),
+            ("New Form Heading", "Form 4"),
+            ("New Form Heading", "Condition report"),
+            (None, "1.\tCondition item"),
+            (None, "Condition body."),
+        ]
+    )
+    sections = parse_docx(data)
+    section_nos = {s.section_no for s in sections}
+    assert not any(no.startswith("S1-F3A-") for no in section_nos)
+    assert section_nos == {"S1-F4-T1"}
+
+
+def test_long_after_tab_text_becomes_body_not_heading():
+    """A form term whose after-tab text is long, free-flowing prose
+    (no short title) must not have it truncated into `heading`; it
+    becomes an empty heading with the prose as the first body line,
+    with nothing lost."""
+    long_text = (
+        "A rental provider must not request or receive a payment of rent "
+        "more than 14 days in advance of the day on which the rent is "
+        "payable under the rental agreement, except as otherwise agreed "
+        "in writing by the renter."
+    )
+    assert len(long_text) > 150
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 3"),
+            ("New Form Heading", "Information for renters"),
+            (None, f"1.\t{long_text}"),
+            (None, "Continuation paragraph."),
+        ]
+    )
+    sections = parse_docx(data)
+    assert len(sections) == 1
+    term = sections[0]
+    assert term.heading == ""
+    assert term.body_text == f"{long_text} Continuation paragraph."
+
+
 def test_numbered_body_lines_do_not_become_terms_outside_forms():
     data = build_docx(
         [
@@ -271,3 +386,29 @@ def test_real_regs_cache_yields_form_terms():
         s for s in sections if s.section_no.startswith("S") and "-F" not in s.section_no
     ]
     assert len(schedule_clauses) >= 35
+
+
+def test_all_cached_regs_versions_have_unique_section_numbers():
+    """Pins historical-version robustness: every cached version must
+    parse with no duplicate section_no and no oversized heading,
+    including 001.docx where the Form 5 opener is styled Normal
+    instead of New Form Heading."""
+    cached = sorted(REGS_CACHE.glob("*.docx"))
+    if not cached:
+        pytest.skip("VIC regulations cache not present")
+    for path in cached:
+        sections = parse_docx(path.read_bytes())
+        counts = Counter(s.section_no for s in sections)
+        _, most_common_count = counts.most_common(1)[0]
+        assert most_common_count == 1, f"{path.name}: duplicate section_no present"
+        max_heading_len = max(len(s.heading) for s in sections)
+        assert max_heading_len <= 300, f"{path.name}: heading exceeds column width"
+
+    first_version_nos = {s.section_no for s in parse_docx(cached[0].read_bytes())}
+    assert {"S1-F4-T1", "S1-F5-T1"} <= first_version_nos
+
+    newest_sections = parse_docx(cached[-1].read_bytes())
+    newest_f1 = [s for s in newest_sections if s.section_no.startswith("S1-F1-")]
+    newest_f2 = [s for s in newest_sections if s.section_no.startswith("S1-F2-")]
+    assert len(newest_f1) >= 30
+    assert len(newest_f2) >= 38

@@ -1,26 +1,26 @@
-"""Wipe the two NSW instruments and re-ingest every cached version.
+"""Wipe the given instruments and re-ingest from cache.
 
-Run against the dev store by default; point DATABASE_URL elsewhere
-(e.g. the production tunnel) to rebuild that store instead. The ingest
-step is cache-first: all cached versions in data/raw/nsw are loaded;
-only the landing-page version check touches the network.
+Usage: PYTHONPATH=. uv run python scripts/rebuild-corpus.py <slug> [<slug> ...]
+Point DATABASE_URL elsewhere (e.g. the production tunnel) to rebuild
+that store. Follow with the matching ingest command
+(python -m app.ingest nsw / vic) - it is cache-first.
 """
 
 import asyncio
+import sys
 
 from sqlalchemy import delete, select
 
 from app.core.db import async_session_factory
 from app.models import Act, IngestedVersion, Section
 
-NSW_SLUGS = ("act-2010-042", "sl-2019-0629")
 
-
-async def wipe() -> None:
+async def wipe(slugs: list[str]) -> None:
     async with async_session_factory() as session:
-        for slug in NSW_SLUGS:
+        for slug in slugs:
             act = (await session.execute(select(Act).where(Act.slug == slug))).scalar_one_or_none()
             if act is None:
+                print(f"absent {slug}")
                 continue
             await session.execute(delete(Section).where(Section.act_id == act.id))
             await session.execute(delete(IngestedVersion).where(IngestedVersion.act_id == act.id))
@@ -30,4 +30,6 @@ async def wipe() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(wipe())
+    if len(sys.argv) < 2:
+        raise SystemExit("usage: rebuild-corpus.py <slug> [<slug> ...]")
+    asyncio.run(wipe(sys.argv[1:]))
