@@ -1,3 +1,4 @@
+import calendar
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -54,3 +55,21 @@ def to_weekly_rent(amount: Decimal, frequency: str) -> Decimal:
     else:
         weekly = amount * 12 / 52
     return weekly.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def add_months(d: date, months: int) -> date:
+    """The corresponding date `months` calendar months after `d`.
+
+    Statutory periods of months are reckoned by the corresponding-date
+    rule (Dodds v Walker): the period ends on the corresponding day of
+    the target month, or its last day when no corresponding day exists
+    (Jan 31 + 1 month is the end of February; Feb 29 + 12 months is
+    Feb 28). Both the Interpretation Act 1987 (NSW) s 21 and the
+    Interpretation of Legislation Act 1984 (Vic) s 38 define month as
+    calendar month.
+    """
+    total = d.month - 1 + months
+    year = d.year + total // 12
+    month = total % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
