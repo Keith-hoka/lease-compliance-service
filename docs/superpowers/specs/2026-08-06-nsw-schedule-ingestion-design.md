@@ -35,8 +35,11 @@ container's heading, and two extractions run inside it:
    nearest enclosing `frag-blockgroup` heading (RENT, SMOKE ALARMS,
    ...), body = the term's full text including nested sub-paragraphs.
 
-Both shapes set part=None and division="Schedule {n} <heading>",
-mirroring VIC's use of division for schedule-internal structure.
+Both shapes set part=None and division="Schedule {n} <heading>". (The
+final review noted VIC's existing schedule rows use the fields the
+other way around - schedule identity in part, internal structure in
+division; the cross-jurisdiction asymmetry is a deliberate input to
+sub-project (b)'s convention decision and (c)'s citation rendering.)
 History notes are decomposed as today. Schedules with neither shape
 (Schedule 2's condition-report table) contribute nothing - the VIC
 precedent. Body-section parsing is untouched. The comparison family
@@ -63,11 +66,13 @@ Accepted consequences:
 
 ## Testing
 
-- Parser tests on a synthetic HTML fixture: schedule container with a
-  trailing-dot clause id, a `frag-form`-nested term, a definitions
-  sub-block, and a history note - asserting the `S1-1` key, heading,
-  division "Schedule 1 Standard Form Agreement", full body text, and
-  that a coexisting ordinary section still parses identically.
+- Parser tests on a synthetic HTML fixture: schedule containers with a
+  trailing-dot clause id and a dotless one, a `frag-form`-nested term
+  with a nested numeric sub-item, and a history note - asserting the
+  `S1-2`, `S1-T7` and `S4-1` keys, headings, division "Schedule 1
+  Standard Form Agreement", full body text, structural exclusion of
+  nested sub-items, and that a coexisting ordinary section still parses
+  identically.
 - Rebuild probes (recorded in the task report): body-section counts
   unchanged before/after; S-prefix row counts added; a Schedule 1 term
   resolves point-in-time today; a version boundary chosen empirically

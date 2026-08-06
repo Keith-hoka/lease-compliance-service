@@ -31,9 +31,16 @@ across a form's PARTs.
   `S{n}-T{m}`), heading = the term's own title after the tab, body = the
   paragraph's remaining text plus following paragraphs until the next
   term, form, PART heading, or schedule boundary.
-- `part = "Form {form} <form title>"` (the form identity, using the slot
-  NSW leaves empty) and `division = "Schedule 1 Forms"` (the schedule
-  identity, NSW-symmetric).
+- `part = "Schedule 1—Forms"` (the schedule identity, exactly as VIC's
+  existing S3-S5 schedule rows already use `part`) and
+  `division = "Form {form} <form title>"` (the form identity - the
+  schedule-internal structure slot, matching VIC's own precedent of
+  putting schedule-internal Parts in `division`). This keeps VIC
+  internally consistent; the (a) final review flagged that NSW puts the
+  schedule identity in `division` instead - a cross-jurisdiction
+  asymmetry deliberately left for (c)'s citation-rendering design,
+  where a formatter must humanise S-keys anyway (the review's "s
+  S1-T5" finding).
 - "Side Note"-style paragraphs (amendment annotations) are skipped.
 - Existing S3-S5 numbered-clause schedule handling and body-section
   parsing are untouched.

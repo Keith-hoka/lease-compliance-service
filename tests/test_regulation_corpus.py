@@ -45,3 +45,11 @@ async def test_regulation_clause_resolves_across_time(regulation_session):
 
 async def test_regulation_before_first_version_is_none(regulation_session):
     assert (await section_at(regulation_session, REG, "1", date(2019, 1, 1))) is None
+
+
+async def test_standard_form_term_resolves(regulation_session):
+    """The dump-restored corpus must carry schedule rows, not just body sections."""
+    term = await section_at(regulation_session, REG, "S1-T1", date(2026, 8, 7))
+    assert term is not None
+    assert term.heading == "RIGHT TO OCCUPY THE PREMISES"
+    assert term.division == "Schedule 1 Standard Form Agreement"
