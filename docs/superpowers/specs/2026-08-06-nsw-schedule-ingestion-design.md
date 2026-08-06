@@ -6,26 +6,41 @@ corpus has zero schedule content: `parse_whole_act` only walks
 `id="sec.N"` fragments, so Reg 2019 Schedule 1 - the Standard Form
 Agreement that (c) will compare leases against - was never captured.
 The whole-view HTML carries schedules in full (`div.frag-schedule`
-containers; the form's terms are `id="sch.1-sec.M."` clause fragments,
-1163 sch-prefixed ids in the current Regulation cache alone). Owner
-decision: ingest every parseable schedule clause across both NSW
-instruments, matching the VIC all-schedules precedent.
+containers holding both schedule-level clauses and, inside `frag-form`,
+the standard form's 59 numbered terms; 1163 sch-prefixed ids in the
+current Regulation cache alone). Owner decision: ingest every parseable
+schedule clause across both NSW instruments, matching the VIC
+all-schedules precedent.
 
 ## Parser
 
+Cache-verified structure (2026-07-30 Regulation version): schedules
+carry two distinct clause shapes with colliding number domains, so they
+get two keyspaces.
+
 `parse_whole_act` gains a second sweep over `div.frag-schedule`
 containers. For each, the schedule number and heading come from the
-container's heading; every clause fragment inside whose id matches
-`sch.{n}-sec.{m}` (including those nested in `frag-form` - the standard
-form's terms are exactly these) yields
-`ParsedSection(section_no="S{n}-{m}", heading=<clause heading>,
-body_text=<full text>, part=None, division="Schedule {n} <heading>")`.
-The key shape matches VIC's `S{n}-{no}` convention; division carries
-the schedule identity, mirroring VIC's use of division for
-schedule-internal structure. Trailing dots in fragment ids (`sec.1.`)
-are stripped; history notes are decomposed as today. Schedules without
-numbered clauses simply contribute nothing (the VIC precedent).
-Body-section parsing is untouched.
+container's heading, and two extractions run inside it:
+
+1. Schedule-level clauses - `frag-clause` fragments with id
+   `sch.{n}-sec.{m}` (trailing dot present or absent; Schedule 4's ids
+   omit it) yield `section_no="S{n}-{m}"`, heading from the clause
+   heading. Schedule 1 has six of these (Definitions, Continuation,
+   Ending, the notice clauses, Warning); Schedule 4 has one.
+2. Form terms - inside `frag-form`, the standard form's numbered terms
+   are `frag-li` items whose `frag-no` matches `^\d+[A-Z]?\.$` (59
+   unique terms 1-59 in Schedule 1; 5 in Schedule 3). Each yields
+   `section_no="S{n}-T{m}"` (T disambiguates the term domain from the
+   clause domain - both start at 1 in Schedule 1), heading = the
+   nearest enclosing `frag-blockgroup` heading (RENT, SMOKE ALARMS,
+   ...), body = the term's full text including nested sub-paragraphs.
+
+Both shapes set part=None and division="Schedule {n} <heading>",
+mirroring VIC's use of division for schedule-internal structure.
+History notes are decomposed as today. Schedules with neither shape
+(Schedule 2's condition-report table) contribute nothing - the VIC
+precedent. Body-section parsing is untouched. The comparison family
+(sub-project c) will cite the form terms as S1-T{m}.
 
 ## Historical backfill: wipe and rebuild from cache
 
@@ -55,9 +70,10 @@ Accepted consequences:
   that a coexisting ordinary section still parses identically.
 - Rebuild probes (recorded in the task report): body-section counts
   unchanged before/after; S-prefix row counts added; a Schedule 1 term
-  resolves point-in-time today; the 2025 amendment boundary visible in
-  the cache (Sch 1 cl 61, "Ins 2025 (139)") flips 404-to-hit across
-  its version date.
+  resolves point-in-time today; a version boundary chosen empirically
+  in-task (a form term present in the newest cached version and absent
+  in the oldest - the form gained terms across the reform years) flips
+  absent-to-hit across its version date.
 - Existing NSW corpus tests stay green (they query by slug +
   section_no; UUID churn from the rebuild is invisible to them).
 - The loader's integrity guards (duplicate keys, zero sections) stand
