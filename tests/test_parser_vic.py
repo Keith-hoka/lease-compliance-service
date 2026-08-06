@@ -1,5 +1,7 @@
 import io
+from pathlib import Path
 
+import pytest
 from docx import Document
 
 from app.ingest.parser_vic import SECTION_HEADING_STYLES, parse_docx
@@ -170,3 +172,102 @@ def test_partless_document_collects_sections_with_pinned_styles():
     sections = parse_docx(data)
     assert [s.section_no for s in sections] == ["1", "2"]
     assert sections[0].part is None
+
+
+def test_form_terms_parse_with_form_scoped_keys():
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("Side Note", "Sch. 1 Form 1 amended by S.R. No. 123/2025."),
+            ("New Form Heading", "Form 1"),
+            (None, "Residential Tenancies Act 1997"),
+            ("New Form Heading", "Residential rental agreement of no more than 5 years"),
+            ("New Form Heading", "PART A—GENERAL"),
+            (None, "1.\tDate of agreement"),
+            (None, "This is the date the agreement is signed."),
+            ("Side Note", "amendment note inside the form"),
+            (None, "2.\tPremises"),
+            (None, "Address of premises."),
+            ("New Form Heading", "PART B—Standard Terms"),
+            (None, "3.\tRent"),
+            (None, "Rent must be paid on time."),
+            ("New Form Heading", "Form 2"),
+            ("New Form Heading", "Agreement of more than 5 years"),
+            (None, "1.\tDate of agreement"),
+            (None, "Second form first term."),
+        ]
+    )
+    sections = parse_docx(data)
+    by_no = {s.section_no: s for s in sections}
+    assert set(by_no) == {"S1-F1-T1", "S1-F1-T2", "S1-F1-T3", "S1-F2-T1"}
+
+    first = by_no["S1-F1-T1"]
+    assert first.heading == "Date of agreement"
+    assert first.body_text == "This is the date the agreement is signed."
+    assert first.part == "Schedule 1—Forms"
+    assert first.division == "Form 1 Residential rental agreement of no more than 5 years"
+
+    rent = by_no["S1-F1-T3"]
+    assert rent.heading == "Rent"
+    assert rent.body_text == "Rent must be paid on time."
+
+    second_form = by_no["S1-F2-T1"]
+    assert second_form.division == "Form 2 Agreement of more than 5 years"
+    assert second_form.body_text == "Second form first term."
+
+
+def test_form_terms_coexist_with_schedule_clauses():
+    data = build_docx(
+        [
+            ("Draft Heading 1", "12 Body clause"),
+            (None, "Body clause text."),
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("Draft Heading 1", "5 Schedule clause"),
+            (None, "Schedule clause text."),
+            ("New Form Heading", "Form 1"),
+            ("New Form Heading", "A form title"),
+            (None, "1.\tOnly term"),
+            (None, "Term body."),
+        ]
+    )
+    sections = parse_docx(data)
+    by_no = {s.section_no: s for s in sections}
+    assert set(by_no) == {"12", "S1-5", "S1-F1-T1"}
+    assert by_no["12"].body_text == "Body clause text."
+    assert by_no["S1-5"].body_text == "Schedule clause text."
+
+
+def test_numbered_body_lines_do_not_become_terms_outside_forms():
+    data = build_docx(
+        [
+            ("Draft Heading 1", "12 Body clause"),
+            (None, "1.\tThis is body prose with a tab, not a form term."),
+        ]
+    )
+    sections = parse_docx(data)
+    assert [s.section_no for s in sections] == ["12"]
+    assert "body prose" in sections[0].body_text
+
+
+REGS_CACHE = Path("data/raw/vic/residential-tenancies-regulations-2021")
+
+
+def test_real_regs_cache_yields_form_terms():
+    cached = sorted(REGS_CACHE.glob("*.docx"))
+    if not cached:
+        pytest.skip("VIC regulations cache not present")
+    sections = parse_docx(cached[-1].read_bytes())
+    form_terms = [s for s in sections if "-F" in s.section_no]
+    f1 = [s for s in form_terms if s.section_no.startswith("S1-F1-")]
+    f2 = [s for s in form_terms if s.section_no.startswith("S1-F2-")]
+    # Exact counts drift with amendments; floors match the probed current
+    # version (F1=32, F2=40, ~236 total).
+    assert len(f1) >= 30
+    assert len(f2) >= 38
+    assert len(form_terms) >= 200
+    assert any(s.heading == "Rent" for s in f1)
+    assert all(s.part == "Schedule 1—Forms" for s in form_terms)
+    schedule_clauses = [
+        s for s in sections if s.section_no.startswith("S") and "-F" not in s.section_no
+    ]
+    assert len(schedule_clauses) >= 35
