@@ -123,10 +123,11 @@ def _frequency_check(lease: LeaseInput) -> CheckResult:
     this 12-month check against the 6-month era. Twelve months is reckoned in
     calendar months under the corresponding-date rule.
     """
-    pairs = list(pairwise(sorted(i.effective_on for i in lease.rent_increases)))
+    dates = sorted(i.effective_on for i in lease.rent_increases)
+    pairs = list(pairwise(dates))
     gaps = [(later - earlier).days for earlier, later in pairs]
     evidence = {
-        "fields": {"rent_increases": [str(i.effective_on) for i in lease.rent_increases]},
+        "fields": {"rent_increases": [str(d) for d in dates]},
         "computed": {"gaps_days": gaps},
     }
     short = [(later - earlier).days for earlier, later in pairs if later < add_months(earlier, 12)]

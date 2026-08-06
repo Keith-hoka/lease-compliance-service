@@ -66,10 +66,13 @@ corresponding-date rule.
 - Migrationless deploy; production acceptance is one audit with a
   leap-spanning increase pair returning the frequency red in each
   jurisdiction's rule.
-- Stored audits are not re-audited: an engine semantics change does not
-  flow through the legislation monitor, boundary flips are one day
-  wide, and new audits use the corrected reckoning (accepted at the
-  approach decision).
+- Stored audits are not force re-audited, but the daily monitor re-runs
+  monitored leases with the current engine, so stored leap-window greens
+  flip to red once on its next pass and notify clients through the
+  audit-changes channel - accepted and ratified: the flips are one day
+  wide, monotone green-to-red corrections of genuinely missed
+  violations, one notification per lease, and the client copy's
+  "updated law or rules" covers engine semantics.
 
 ## Out of scope
 
