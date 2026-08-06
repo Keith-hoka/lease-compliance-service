@@ -32,6 +32,16 @@ def _ancestor_heading(node, ancestor_class: str) -> str | None:
     return None
 
 
+def _is_nested_frag_li(node, boundary) -> bool:
+    current = node.parent
+    while current is not None and current is not boundary:
+        classes = current.attributes.get("class", "") or ""
+        if "frag-li" in classes.split():
+            return True
+        current = current.parent
+    return False
+
+
 def _parse_schedules(tree: HTMLParser) -> list[ParsedSection]:
     """Schedule clauses and standard-form terms, in two keyspaces.
 
@@ -69,6 +79,8 @@ def _parse_schedules(tree: HTMLParser) -> list[ParsedSection]:
         if form is None:
             continue
         for item in form.css("div.frag-li"):
+            if _is_nested_frag_li(item, form):
+                continue
             no_node = item.css_first(".frag-no")
             if no_node is None:
                 continue

@@ -24,6 +24,7 @@ FIXTURE = """
         <div class="frag-block">
           <div id="sch.1-form-bg1-bg2-para1.7." class="frag-li"><blockquote class="children"><span class="frag-no"><b>7.</b></span>&#160;&#160;<b>The tenant agrees</b> to pay rent on time.
             <div class="frag-li"><blockquote class="children"><span class="frag-no">(a)</span> by the method chosen.</blockquote></div>
+            <div class="frag-li"><blockquote class="children"><span class="frag-no">2.</span> Nested marker text that must survive.</blockquote></div>
           </blockquote></div>
         </div>
       </div>
@@ -80,6 +81,12 @@ def test_history_notes_stripped_from_schedule_clauses():
     assert "history noise" not in sections["S1-2"].body_text
 
 
+def test_nested_frag_li_does_not_create_phantom_term_key():
+    sections = _by_no(parse_whole_act(FIXTURE))
+    assert "S1-T2" not in sections
+    assert "Nested marker text that must survive." in sections["S1-T7"].body_text
+
+
 CACHE = Path("data/raw/nsw/sl-2019-0629")
 
 
@@ -91,5 +98,11 @@ def test_real_regulation_cache_yields_the_standard_form():
     terms = [s for s in sections if s.section_no.startswith("S1-T")]
     clauses = [s for s in sections if s.section_no.startswith("S1-") and "-T" not in s.section_no]
     assert len(terms) >= 55
+    # Exact count is deliberate: schedule-level clauses are structurally stable, while the
+    # term floor is >= because terms grow with amendments.
     assert len(clauses) == 6
     assert any(s.heading == "RENT" for s in terms)
+
+    s3_terms = {s.section_no: s for s in sections if s.section_no.startswith("S3-T")}
+    assert set(s3_terms) == {f"S3-T{n}" for n in range(1, 6)}
+    assert {s.heading for s in s3_terms.values()} == {"How to complete this declaration"}
