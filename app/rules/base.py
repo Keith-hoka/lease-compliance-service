@@ -64,9 +64,12 @@ def add_months(d: date, months: int) -> date:
     rule (Dodds v Walker): the period ends on the corresponding day of
     the target month, or its last day when no corresponding day exists
     (Jan 31 + 1 month is the end of February; Feb 29 + 12 months is
-    Feb 28). Both the Interpretation Act 1987 (NSW) s 21 and the
-    Interpretation of Legislation Act 1984 (Vic) s 38 define month as
-    calendar month.
+    Feb 28). The Interpretation Act 1987 (NSW) Schedule 4 defines
+    calendar month as the period to the corresponding day of the next
+    named month, or that month's end when no corresponding day exists;
+    the Interpretation of Legislation Act 1984 (Vic) s 44(6)(b)
+    construes a month as a calendar month (both verified against the
+    current in-force text, 2026-08-06).
     """
     total = d.month - 1 + months
     year = d.year + total // 12
