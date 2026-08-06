@@ -24,8 +24,11 @@ jobs:
       - name: Restore corpus fixture
         run: |
           PGPASSWORD=postgres createdb -h localhost -p 5433 -U postgres lease_compliance
+          uv run alembic upgrade head
           PGPASSWORD=postgres pg_restore -h localhost -p 5433 -U postgres \
-            -d lease_compliance --no-owner --no-privileges tests/fixtures/corpus.dump
+            -d lease_compliance --data-only --no-owner --no-privileges tests/fixtures/corpus.dump
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/lease_compliance
       - run: uv run pytest -q
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/lease_compliance_test
