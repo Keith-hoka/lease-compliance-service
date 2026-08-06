@@ -1,8 +1,8 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from itertools import pairwise
 
-from app.rules.base import CheckResult, Rule, SectionRef, to_weekly_rent
+from app.rules.base import CheckResult, Rule, SectionRef, add_months, to_weekly_rent
 from app.schemas.lease import LeaseInput
 
 ACT = "act-2010-042"
@@ -11,7 +11,6 @@ COMMENCED = date(2011, 1, 31)
 FREQ_COMMENCED = date(2020, 3, 23)
 FIRST_YEAR_COMMENCED = date(2024, 10, 31)
 S42_REPEALED = date(2024, 12, 13)
-YEAR = timedelta(days=365)
 
 
 def _bond_check(lease: LeaseInput) -> CheckResult:
@@ -93,17 +92,21 @@ def _sorted_increases(lease: LeaseInput):
 
 def _frequency_check(lease: LeaseInput) -> CheckResult:
     """s41(1A)(b): rent "may not be increased more than once in any period of 12
-    months" (corpus text as at 2026-07-24; limit commenced 2020-03-23).
+    months" (corpus text as at 2026-07-24; limit commenced 2020-03-23). Twelve
+    months is reckoned in calendar months under the corresponding-date rule.
     """
     increases = _sorted_increases(lease)
-    gaps = [
-        (later.effective_on - earlier.effective_on).days for earlier, later in pairwise(increases)
-    ]
+    pairs = list(pairwise(increases))
+    gaps = [(later.effective_on - earlier.effective_on).days for earlier, later in pairs]
     evidence = {
         "fields": {"rent_increases": [i.effective_on.isoformat() for i in increases]},
         "computed": {"gaps_days": gaps},
     }
-    short = [g for g in gaps if g < YEAR.days]
+    short = [
+        (later.effective_on - earlier.effective_on).days
+        for earlier, later in pairs
+        if later.effective_on < add_months(earlier.effective_on, 12)
+    ]
     if short:
         return (
             "red",
@@ -115,7 +118,8 @@ def _frequency_check(lease: LeaseInput) -> CheckResult:
 
 def _first_year_check(lease: LeaseInput) -> CheckResult:
     """s41(1A)(a): rent "may not be increased within 12 months after the start of the
-    tenancy" (corpus text as at 2026-07-24; limit commenced 2024-10-31).
+    tenancy" (corpus text as at 2026-07-24; limit commenced 2024-10-31). Twelve
+    months is reckoned in calendar months under the corresponding-date rule.
     """
     first = _sorted_increases(lease)[0] if lease.rent_increases else None
     days = (first.effective_on - lease.start_date).days if first else None
@@ -126,7 +130,7 @@ def _first_year_check(lease: LeaseInput) -> CheckResult:
         },
         "computed": {"days_after_start": days},
     }
-    if first is not None and days < YEAR.days:
+    if first is not None and first.effective_on < add_months(lease.start_date, 12):
         return (
             "red",
             f"First rent increase {days} days after the tenancy start, before 12 months.",
@@ -156,19 +160,21 @@ def _disclosure_check(lease: LeaseInput) -> CheckResult:
     """s42(1) (repealed 2024-12-13): rent under "a fixed term agreement for a fixed
     term of less than 2 years must not be increased during the fixed term unless the
     agreement specifies the increased rent or the method of calculating the increase"
-    (corpus text as at 2024-06-01).
+    (corpus text as at 2024-06-01). Twenty-four months is reckoned in calendar
+    months under the corresponding-date rule.
     """
     term_days = (lease.end_date - lease.start_date).days
     in_term = [i for i in _sorted_increases(lease) if i.effective_on < lease.end_date]
+    under_2_years = lease.end_date < add_months(lease.start_date, 24)
     evidence = {
         "fields": {
             "term_days": term_days,
             "increases_in_term": [i.effective_on.isoformat() for i in in_term],
             "fixed_term_increase_in_agreement": lease.fixed_term_increase_in_agreement,
         },
-        "computed": {"fixed_term_under_2_years": term_days < 2 * YEAR.days},
+        "computed": {"fixed_term_under_2_years": under_2_years},
     }
-    if term_days < 2 * YEAR.days and in_term and lease.fixed_term_increase_in_agreement is not True:
+    if under_2_years and in_term and lease.fixed_term_increase_in_agreement is not True:
         return (
             "red",
             (
@@ -199,12 +205,13 @@ def _break_fee_check(lease: LeaseInput) -> CheckResult:
     """s107(4): for a fixed term of not more than 3 years the break fee is capped on a
     sliding scale from "an amount equal to 4 weeks rent" (less than 25% of the term
     expired) down to 1 week's rent (corpus text as at 2026-07-24; mandatory scale
-    commenced 2020-03-23).
+    commenced 2020-03-23). Thirty-six months is reckoned in calendar months under
+    the corresponding-date rule.
     """
     weekly = to_weekly_rent(lease.rent_amount, lease.rent_frequency)
     max_fee = (weekly * 4).quantize(Decimal("0.01"))
     term_days = (lease.end_date - lease.start_date).days
-    scale_applies = term_days <= 3 * YEAR.days
+    scale_applies = lease.end_date <= add_months(lease.start_date, 36)
     evidence = {
         "fields": {"break_fee_amount": str(lease.break_fee_amount), "term_days": term_days},
         "computed": {"max_break_fee": str(max_fee), "scale_applies": scale_applies},

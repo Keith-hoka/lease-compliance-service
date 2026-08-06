@@ -1,8 +1,8 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from itertools import pairwise
 
-from app.rules.base import CheckResult, Rule, SectionRef, to_weekly_rent
+from app.rules.base import CheckResult, Rule, SectionRef, add_months, to_weekly_rent
 from app.schemas.lease import LeaseInput
 
 ACT = "residential-tenancies-act-1997"
@@ -10,7 +10,6 @@ REGS = "residential-tenancies-regulations-2021"
 
 RENT_THRESHOLD_WEEKLY = Decimal(900)
 S44_CORPUS_FLOOR = date(2020, 4, 6)
-YEAR = timedelta(days=365)
 
 
 def _monthly_rent(lease: LeaseInput) -> Decimal:
@@ -121,22 +120,23 @@ def _frequency_check(lease: LeaseInput) -> CheckResult:
     pre-reform 6-month interval era predates the corpus and is not modelled;
     applies_from is pinned to this floor as a deliberate safety net so that if
     that earlier text were ever backfilled, citation gating alone would not run
-    this 12-month check against the 6-month era.
+    this 12-month check against the 6-month era. Twelve months is reckoned in
+    calendar months under the corresponding-date rule.
     """
-    dates = sorted(i.effective_on for i in lease.rent_increases)
-    gaps = [(later - earlier).days for earlier, later in pairwise(dates)]
+    pairs = list(pairwise(sorted(i.effective_on for i in lease.rent_increases)))
+    gaps = [(later - earlier).days for earlier, later in pairs]
     evidence = {
-        "fields": {"rent_increases": [str(d) for d in dates]},
+        "fields": {"rent_increases": [str(i.effective_on) for i in lease.rent_increases]},
         "computed": {"gaps_days": gaps},
     }
-    short = [g for g in gaps if g < YEAR.days]
+    short = [(later - earlier).days for earlier, later in pairs if later < add_months(earlier, 12)]
     if short:
         return (
             "red",
             f"Rent increases less than 12 months apart (shortest gap {min(short)} days).",
             evidence,
         )
-    return "green", "All rent increases are at least 12 months apart.", evidence
+    return ("green", "All rent increases are at least 12 months apart.", evidence)
 
 
 def _fixed_term_check(lease: LeaseInput) -> CheckResult:

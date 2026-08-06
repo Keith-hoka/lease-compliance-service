@@ -248,6 +248,47 @@ async def test_increase_outside_the_term_is_green(corpus_session):
     assert findings["vic.fixed_term_increase_provision"].verdict == "green"
 
 
+async def test_leap_spanning_365_day_gap_is_red(corpus_session):
+    findings = await run(
+        corpus_session,
+        lease(
+            rent_increases=[
+                RentIncrease(effective_on=date(2023, 3, 1), new_amount=Decimal(2000)),
+                RentIncrease(effective_on=date(2024, 2, 29), new_amount=Decimal(2100)),
+            ]
+        ),
+    )
+    f = findings["vic.rent_increase_frequency"]
+    assert f.verdict == "red"
+    assert "365" in f.summary
+
+
+async def test_feb29_anniversary_clamps_to_feb28(corpus_session):
+    findings = await run(
+        corpus_session,
+        lease(
+            rent_increases=[
+                RentIncrease(effective_on=date(2024, 2, 29), new_amount=Decimal(2000)),
+                RentIncrease(effective_on=date(2025, 2, 28), new_amount=Decimal(2100)),
+            ]
+        ),
+    )
+    assert findings["vic.rent_increase_frequency"].verdict == "green"
+
+
+async def test_day_before_clamped_anniversary_is_red(corpus_session):
+    findings = await run(
+        corpus_session,
+        lease(
+            rent_increases=[
+                RentIncrease(effective_on=date(2024, 2, 29), new_amount=Decimal(2000)),
+                RentIncrease(effective_on=date(2025, 2, 27), new_amount=Decimal(2100)),
+            ]
+        ),
+    )
+    assert findings["vic.rent_increase_frequency"].verdict == "red"
+
+
 async def test_nsw_audit_unchanged_and_vic_returns_only_vic_rules(corpus_session):
     vic = await run(corpus_session, lease(bond_amount=Decimal(2500)))
     assert len(vic) == 4

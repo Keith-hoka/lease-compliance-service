@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.models import Act
 from app.rules.engine import run_audit
-from app.schemas.lease import LeaseInput
+from app.schemas.lease import LeaseInput, RentIncrease
 
 AS_AT = date(2026, 7, 24)
 
@@ -272,3 +272,75 @@ async def test_break_fee_without_end_date_is_skipped(corpus_session):
     finding = await _verdict(corpus_session, "nsw.break_fee_cap", break_fee_amount=Decimal(2500))
     assert finding.verdict == "skipped"
     assert "end_date" in finding.skip_reason
+
+
+async def test_leap_spanning_365_day_gap_is_red(corpus_session):
+    finding = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_frequency",
+        rent_increases=[
+            RentIncrease(effective_on=date(2023, 3, 1), new_amount=Decimal(650)),
+            RentIncrease(effective_on=date(2024, 2, 29), new_amount=Decimal(700)),
+        ],
+    )
+    assert finding.verdict == "red"
+    assert "365" in finding.summary
+
+
+async def test_first_year_leap_boundary(corpus_session):
+    red = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_first_year",
+        start_date=date(2023, 3, 1),
+        rent_increases=[RentIncrease(effective_on=date(2024, 2, 29), new_amount=Decimal(650))],
+    )
+    assert red.verdict == "red"
+    green = await _verdict(
+        corpus_session,
+        "nsw.rent_increase_first_year",
+        start_date=date(2023, 3, 1),
+        rent_increases=[RentIncrease(effective_on=date(2024, 3, 1), new_amount=Decimal(650))],
+    )
+    assert green.verdict == "green"
+
+
+async def test_disclosure_leap_term_is_under_two_years(corpus_session):
+    red = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        as_at=date(2024, 6, 1),
+        start_date=date(2023, 3, 1),
+        end_date=date(2025, 2, 28),
+        rent_increases=[RentIncrease(effective_on=date(2024, 1, 15), new_amount=Decimal(650))],
+        fixed_term_increase_in_agreement=False,
+    )
+    assert red.verdict == "red"
+    green = await _verdict(
+        corpus_session,
+        "nsw.fixed_term_increase_disclosure",
+        as_at=date(2024, 6, 1),
+        start_date=date(2023, 3, 1),
+        end_date=date(2025, 3, 1),
+        rent_increases=[RentIncrease(effective_on=date(2024, 1, 15), new_amount=Decimal(650))],
+        fixed_term_increase_in_agreement=False,
+    )
+    assert green.verdict == "green"
+
+
+async def test_break_fee_scale_applies_on_the_exact_anniversary(corpus_session):
+    red = await _verdict(
+        corpus_session,
+        "nsw.break_fee_cap",
+        start_date=date(2023, 3, 1),
+        end_date=date(2026, 3, 1),
+        break_fee_amount=Decimal(5000),
+    )
+    assert red.verdict == "red"
+    green = await _verdict(
+        corpus_session,
+        "nsw.break_fee_cap",
+        start_date=date(2023, 3, 1),
+        end_date=date(2026, 3, 2),
+        break_fee_amount=Decimal(5000),
+    )
+    assert green.verdict == "green"
