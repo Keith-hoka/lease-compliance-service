@@ -270,9 +270,11 @@ def test_form_opener_recognised_when_styled_normal():
 
 
 def test_form_opener_recognised_when_all_caps():
-    """Some cached versions (005+) style a form's opener paragraph as
-    Normal AND in all caps ("FORM 9"); the exact-text fallback must
-    match case-insensitively, combining with the Normal-style fix."""
+    """Cached versions 005+ carry all-caps openers ("FORM 3A", "FORM 16A")
+    in New Form Heading style, rescued by _FORM_RE's IGNORECASE; 001 has a
+    Normal-styled "Form 5", rescued by the exact-text fallback. This pins
+    the synthetic combination (Normal AND all-caps) so both matchers stay
+    case-insensitive."""
     data = build_docx(
         [
             ("Heading - PART", "Schedule 1—Forms"),
@@ -376,10 +378,15 @@ def test_real_regs_cache_yields_form_terms():
     f1 = [s for s in form_terms if s.section_no.startswith("S1-F1-")]
     f2 = [s for s in form_terms if s.section_no.startswith("S1-F2-")]
     # Exact counts drift with amendments; floors match the probed current
-    # version (F1=32, F2=40, ~236 total).
+    # version (F1=32, F2=40, 219 total after Form 3A's deliberate skip).
     assert len(f1) >= 30
     assert len(f2) >= 38
     assert len(form_terms) >= 200
+    # Guard against a form silently vanishing to a future false restart:
+    # the newest version yields exactly 21 form prefixes (every form with
+    # numbered items, minus Form 3A's deliberate restart skip).
+    form_prefixes = {s.section_no.split("-")[1] for s in form_terms}
+    assert len(form_prefixes) == 21
     assert any(s.heading == "Rent" for s in f1)
     assert all(s.part == "Schedule 1—Forms" for s in form_terms)
     schedule_clauses = [
@@ -412,3 +419,25 @@ def test_all_cached_regs_versions_have_unique_section_numbers():
     newest_f2 = [s for s in newest_sections if s.section_no.startswith("S1-F2-")]
     assert len(newest_f1) >= 30
     assert len(newest_f2) >= 38
+
+
+def test_title_prose_split_at_exactly_150_chars():
+    """Pins both sides of the heading threshold: 150 titles, 151 proses."""
+    title_150 = "T" * 150
+    prose_151 = "P" * 151
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 1"),
+            ("New Form Heading", "A form title"),
+            (None, f"1.\t{title_150}"),
+            (None, "Body of the titled term."),
+            (None, f"2.\t{prose_151}"),
+            (None, "Continuation of the prose term."),
+        ]
+    )
+    by_no = {s.section_no: s for s in parse_docx(data)}
+    assert by_no["S1-F1-T1"].heading == title_150
+    assert by_no["S1-F1-T1"].body_text == "Body of the titled term."
+    assert by_no["S1-F1-T2"].heading == ""
+    assert by_no["S1-F1-T2"].body_text == f"{prose_151} Continuation of the prose term."

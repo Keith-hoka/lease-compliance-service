@@ -52,9 +52,10 @@ at corpus build time. Term bodies are paragraph text.
 
 Three further refinements landed during the Task 2 rebuild, once the
 full historical cache exposed cases the single-version spike above
-didn't cover. Form openers are matched case-insensitively, including
-the Normal-styled exact-text fallback, so both a Normal-styled "Form 5"
-and an all-caps "FORM 9" open their form correctly. A form whose term
+didn't cover. Form openers are matched case-insensitively - rescuing
+the all-caps styled "FORM 3A"/"FORM 16A" openers in versions 005+ - and
+version 001's Normal-styled "Form 5" opener is caught by an exact-text
+fallback, itself case-insensitive. A form whose term
 numbering restarts partway through - Form 3A's three independently
 numbered PART sequences, present from version 005 onward - cannot be
 keyed by the continuous-numbering model and is deliberately skipped in
@@ -75,7 +76,9 @@ The (a) pipeline shape, scoped to one instrument:
   VIC Regulations as a target.
 - Probes: existing S3-S5 and body counts unchanged; Form 1 yields 32
   terms and Form 2 yields 40 in the newest version; total form terms
-  roughly 236; a Form 1 point-in-time boundary chosen empirically (the
+  219 (the pre-refinement estimate of ~236 included Form 3A's ~28 terms,
+  now deliberately skipped); a Form 1 point-in-time boundary chosen
+  empirically (the
   Form 1 side note records amendment by S.R. 123/2025, so a 2025
   version boundary exists) flips absent-to-hit.
 - CI corpus dump refreshed; existing VIC rule and clause tests stay

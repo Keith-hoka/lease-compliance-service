@@ -19,10 +19,11 @@ applies only in fallback mode.
 
 Prescribed forms inside a schedule (New Form Heading paragraphs) yield
 their numbered terms as S{sch}-F{form}-T{term}, with the form identity
-in division and the schedule heading in part. Some cached versions
-style a form's opener paragraph as Normal rather than New Form Heading,
-and/or upper-case its text ("FORM 9"), so the opener is also matched
-case-insensitively on exact "Form N" text regardless of style. A form
+in division and the schedule heading in part. Cached versions 005+
+upper-case some styled openers ("FORM 3A", "FORM 16A"), so the style
+match is case-insensitive; version 001 styles the "Form 5" opener as
+Normal, so exact "Form N" text also opens a form regardless of style,
+matched case-insensitively for the same reason. A form
 whose numbering restarts partway through (Form 3A's three independent
 PART-scoped sequences, present from version 005 onward) cannot be
 keyed by the continuous-numbering model, so it is skipped in its
