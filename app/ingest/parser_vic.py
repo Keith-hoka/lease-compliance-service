@@ -28,6 +28,11 @@ whose numbering restarts partway through (Form 3A's three independent
 PART-scoped sequences, present from version 005 onward) cannot be
 keyed by the continuous-numbering model, so it is skipped in its
 entirety - it deliberately yields no terms rather than colliding keys.
+
+Term numbers appear in three source shapes: "N.\t", "N. \t" (most of
+Forms 8-24), and one dotless "N \t" typo (Form 19 item 7, every
+version), so the dot is optional. Digit sub-items ("9.1\t") never
+match - the dot must be followed by spaces or the tab.
 """
 
 import io
@@ -46,7 +51,7 @@ _DIVISION_RE = re.compile(r"^(?:Division|Subdivision) \d+[A-Z]*—")
 _SCHEDULE_RE = re.compile(r"^Schedule (\d+[A-Z]*)—")
 _SECTION_RE = re.compile(r"^(\d+[A-Z]*)\s+(\S.*)$")
 _FORM_RE = re.compile(r"^Form (\d+[A-Z]?)\b", re.IGNORECASE)
-_FORM_TERM_RE = re.compile(r"^(\d+[A-Z]?)\. *\t(.+)$", re.DOTALL)
+_FORM_TERM_RE = re.compile(r"^(\d+[A-Z]?)\.? *\t(.+)$", re.DOTALL)
 
 
 def _clean(text: str) -> str:

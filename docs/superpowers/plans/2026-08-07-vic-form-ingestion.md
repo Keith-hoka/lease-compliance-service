@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** All prescribed forms' numbered terms in VIC Regs 2021 Schedule 1 (25 form openers in versions 001-004 and 27 in 005-009 - Forms 1-25 plus 3A and 16A; 375 terms in 001-004 and 403 in 005-009 once Form 3A's unkeyable restart is excluded - including Form 1's 32 and Form 2's 40 rental-agreement terms) land in the corpus point-in-time under `S1-F{k}-T{m}` keys.
+**Goal:** All prescribed forms' numbered terms in VIC Regs 2021 Schedule 1 (25 form openers in versions 001-004 and 27 in 005-009 - Forms 1-25 plus 3A and 16A; 376 terms in 001-004 and 404 in 005-009 once Form 3A's unkeyable restart is excluded - including Form 1's 32 and Form 2's 40 rental-agreement terms) land in the corpus point-in-time under `S1-F{k}-T{m}` keys.
 
 **Architecture:** `parse_docx` gains a form sweep active inside schedule regions: "New Form Heading" paragraphs open form scopes and titles, raw-text `^N.\t` or `^N. \t` paragraphs start terms (two source conventions; the tab must be matched before `_clean` collapses it), Side Notes are skipped within forms only; the VIC Regulations instrument is wiped and rebuilt from the DOCX cache; the CI dump is refreshed; production follows over the tunnel.
 
@@ -124,7 +124,7 @@ def test_real_regs_cache_yields_form_terms():
     f1 = [s for s in form_terms if s.section_no.startswith("S1-F1-")]
     f2 = [s for s in form_terms if s.section_no.startswith("S1-F2-")]
     # Exact counts drift with amendments; floors match the probed current
-    # version (F1=32, F2=40, 403 total).
+    # version (F1=32, F2=40, 404 total).
     assert len(f1) >= 30
     assert len(f2) >= 38
     assert len(form_terms) >= 200
@@ -382,7 +382,7 @@ EOF
 
 Expected: non-schedule and plain-schedule counts match the before-probe
 (body and S3-S5 rows reproduced); current F1 = 32, F2 = 40, all-form
-403; `S1-F1-T6` resolves today (its heading is the Rent term);
+404; `S1-F1-T6` resolves today (its heading is the Rent term);
 the latest-born F1 term's boundary flips absent-to-hit (the 123/2025
 amendment guarantees at least one 2025 boundary). If the newest term
 was born in the first cached version, pick the next row down - the

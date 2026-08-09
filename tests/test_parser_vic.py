@@ -1,4 +1,5 @@
 import io
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -220,8 +221,8 @@ def test_form_terms_parse_with_form_scoped_keys():
 
 def test_form_term_matches_dot_space_tab_convention():
     """The source uses two numbering conventions for top-level form
-    items: dot-tab (Forms 1-7, 16A) and dot-space-tab (184 items across
-    the cache, most of Forms 8-24, e.g. Form 11). A digit sub-item like
+    items: dot-tab (Forms 1-7, 16A) and dot-space-tab (184 items per
+    version, most of Forms 8-24, e.g. Form 11). A digit sub-item like
     "9.1\tx" must stay body text, not start a new term."""
     data = build_docx(
         [
@@ -405,7 +406,7 @@ def test_real_regs_cache_yields_form_terms():
     f1 = [s for s in form_terms if s.section_no.startswith("S1-F1-")]
     f2 = [s for s in form_terms if s.section_no.startswith("S1-F2-")]
     # Exact counts drift with amendments; floors match the probed current
-    # version (F1=32, F2=40, 403 total after Form 3A's deliberate skip).
+    # version (F1=32, F2=40, 404 total after Form 3A's deliberate skip).
     assert len(f1) >= 30
     assert len(f2) >= 38
     assert len(form_terms) >= 400
@@ -422,11 +423,19 @@ def test_real_regs_cache_yields_form_terms():
     assert len(schedule_clauses) >= 35
 
 
+_INDEPENDENT_ITEM_RE = re.compile(r"^\d+[A-Z]?\W{0,3}\t")
+
+
 def _expected_form_term_count(data: bytes) -> int:
     """Independent scan for the Important-2 completeness check: track
-    form scope with the parser's own opener predicate, count raw-text
-    term matches while a form is open, and drop the forms the parser
-    deliberately discards (Form 3A's restart)."""
+    form scope with the parser's own opener predicate, count numbered
+    items while a form is open, and drop the forms the parser
+    deliberately discards (Form 3A's restart). The item definition is
+    NOT the parser's term regex but a deliberately broader one - a
+    number then any short non-word separator then the tab - so a source
+    convention the parser fails to key breaks this count loudly instead
+    of being invisibly agreed away (digit sub-items like "9.1\\t" still
+    never match: the digit after the dot is a word character)."""
     document = Document(io.BytesIO(data))
     in_schedule, form_no = False, None
     per_form: Counter[str] = Counter()
@@ -448,7 +457,7 @@ def _expected_form_term_count(data: bytes) -> int:
             form_match = parser_vic._FORM_RE.match(text)
             form_no = form_match.group(1).upper() if form_match else form_no
             continue
-        if form_no is not None and parser_vic._FORM_TERM_RE.match(paragraph.text):
+        if form_no is not None and _INDEPENDENT_ITEM_RE.match(paragraph.text):
             per_form[form_no] += 1
     return sum(count for form, count in per_form.items() if form != "3A")
 
@@ -511,3 +520,25 @@ def test_title_prose_split_at_exactly_150_chars():
     assert by_no["S1-F1-T1"].body_text == "Body of the titled term."
     assert by_no["S1-F1-T2"].heading == ""
     assert by_no["S1-F1-T2"].body_text == f"{prose_151} Continuation of the prose term."
+
+
+def test_form_term_matches_dotless_space_tab_convention():
+    """Form 19 writes item 7 as "7 " + tab with no dot in every cached
+    version (a source typo); the term regex must be dot-optional so the
+    item is keyed instead of absorbed into the previous term's body."""
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 19"),
+            ("New Form Heading", "A form title"),
+            (None, "6. \tSixth term"),
+            (None, "Sixth body."),
+            (None, "7 \tDate of condition report"),
+            (None, "Seventh body."),
+        ]
+    )
+    by_no = {s.section_no: s for s in parse_docx(data)}
+    assert set(by_no) == {"S1-F19-T6", "S1-F19-T7"}
+    assert by_no["S1-F19-T7"].heading == "Date of condition report"
+    assert by_no["S1-F19-T7"].body_text == "Seventh body."
+    assert by_no["S1-F19-T6"].body_text == "Sixth body."

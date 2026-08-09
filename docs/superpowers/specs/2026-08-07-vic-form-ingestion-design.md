@@ -10,7 +10,7 @@ the two agreements sub-project (c) will compare leases against - but
 contributes nothing to the corpus today: the forms' terms are
 Normal-style paragraphs with literal tab-separated numbers, which
 `parse_docx` does not recognise. Owner decision: ingest every numbered
-item across every prescribed form (375 terms in versions 001-004, 403
+item across every prescribed form (376 terms in versions 001-004, 404
 in 005-009 once Form 3A's unkeyable restart is excluded), matching the
 two prior all-schedules decisions.
 
@@ -78,10 +78,11 @@ The (a) pipeline shape, scoped to one instrument:
   VIC Regulations as a target.
 - Probes: existing S3-S5 and body counts unchanged; Form 1 yields 32
   terms and Form 2 yields 40 in the newest version; total form terms
-  403 (the pre-refinement estimate of ~236 had included Form 3A's ~28
+  404 (the pre-refinement estimate of ~236 had included Form 3A's ~28
   terms, now deliberately skipped; a final whole-branch review then
   found a second numbering convention the term regex had missed,
-  recovering a further 184 terms over the 219 first measured); a Form 1
+  recovering a further 184 terms over the 219 first measured, plus a
+  dotless "7 " + tab typo in Form 19 present in every version); a Form 1
   point-in-time boundary chosen empirically (the
   Form 1 side note records amendment by S.R. 123/2025, so a 2025
   version boundary exists) flips absent-to-hit.
