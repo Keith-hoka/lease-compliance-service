@@ -21,9 +21,9 @@ Prescribed forms inside a schedule (New Form Heading paragraphs) yield
 their numbered terms as S{sch}-F{form}-T{term}, with the form identity
 in division and the schedule heading in part. Cached versions 005+
 upper-case some styled openers ("FORM 3A", "FORM 16A"), so the style
-match is case-insensitive; version 001 styles the "Form 5" opener as
-Normal, so exact "Form N" text also opens a form regardless of style,
-matched case-insensitively for the same reason. A form
+match is case-insensitive; every cached version styles the "Form 5"
+opener as Normal, so exact "Form N" text also opens a form regardless
+of style, matched case-insensitively for the same reason. A form
 whose numbering restarts partway through (Form 3A's three independent
 PART-scoped sequences, present from version 005 onward) cannot be
 keyed by the continuous-numbering model, so it is skipped in its
@@ -46,8 +46,7 @@ _DIVISION_RE = re.compile(r"^(?:Division|Subdivision) \d+[A-Z]*—")
 _SCHEDULE_RE = re.compile(r"^Schedule (\d+[A-Z]*)—")
 _SECTION_RE = re.compile(r"^(\d+[A-Z]*)\s+(\S.*)$")
 _FORM_RE = re.compile(r"^Form (\d+[A-Z]?)\b", re.IGNORECASE)
-_FORM_EXACT_RE = re.compile(r"Form \d+[A-Z]?", re.IGNORECASE)
-_FORM_TERM_RE = re.compile(r"^(\d+[A-Z]?)\.\t(.+)$", re.DOTALL)
+_FORM_TERM_RE = re.compile(r"^(\d+[A-Z]?)\. *\t(.+)$", re.DOTALL)
 
 
 def _clean(text: str) -> str:
@@ -78,7 +77,6 @@ def parse_docx(data: bytes) -> list[ParsedSection]:
     form_title: str | None = None
     form_broken = False
     form_last_term_key: tuple[int, str] | None = None
-    form_start_index = 0
     term: dict | None = None
 
     def flush() -> None:
@@ -139,12 +137,12 @@ def parse_docx(data: bytes) -> list[ParsedSection]:
             division = text
             continue
         if schedule_no is not None and (
-            style_name == FORM_HEADING_STYLE or _FORM_EXACT_RE.fullmatch(text)
+            style_name == FORM_HEADING_STYLE or _FORM_RE.fullmatch(text)
         ):
             flush_term()
             form_match = _FORM_RE.match(text)
             if form_match:
-                form_no, form_title = form_match.group(1), None
+                form_no, form_title = form_match.group(1).upper(), None
                 form_broken, form_last_term_key = False, None
                 form_start_index = len(sections)
             elif form_no is not None and form_title is None and not text.startswith("PART"):

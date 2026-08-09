@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from docx import Document
 
+from app.ingest import parser_vic
 from app.ingest.parser_vic import SECTION_HEADING_STYLES, parse_docx
 
 HEAD = SECTION_HEADING_STYLES[0]
@@ -217,6 +218,32 @@ def test_form_terms_parse_with_form_scoped_keys():
     assert second_form.body_text == "Second form first term."
 
 
+def test_form_term_matches_dot_space_tab_convention():
+    """The source uses two numbering conventions for top-level form
+    items: dot-tab (Forms 1-7, 16A) and dot-space-tab (184 items across
+    the cache, most of Forms 8-24, e.g. Form 11). A digit sub-item like
+    "9.1\tx" must stay body text, not start a new term."""
+    data = build_docx(
+        [
+            ("Heading - PART", "Schedule 1—Forms"),
+            ("New Form Heading", "Form 11"),
+            ("New Form Heading", "A form title"),
+            (None, "1. \tFirst term"),
+            (None, "First body."),
+            (None, "9.1\tSub-item text that must stay in the body."),
+            (None, "2. \tSecond term"),
+            (None, "Second body."),
+        ]
+    )
+    sections = parse_docx(data)
+    by_no = {s.section_no: s for s in sections}
+    assert set(by_no) == {"S1-F11-T1", "S1-F11-T2"}
+    assert by_no["S1-F11-T1"].heading == "First term"
+    assert "Sub-item text that must stay in the body" in by_no["S1-F11-T1"].body_text
+    assert by_no["S1-F11-T2"].heading == "Second term"
+    assert by_no["S1-F11-T2"].body_text == "Second body."
+
+
 def test_form_terms_coexist_with_schedule_clauses():
     data = build_docx(
         [
@@ -378,15 +405,15 @@ def test_real_regs_cache_yields_form_terms():
     f1 = [s for s in form_terms if s.section_no.startswith("S1-F1-")]
     f2 = [s for s in form_terms if s.section_no.startswith("S1-F2-")]
     # Exact counts drift with amendments; floors match the probed current
-    # version (F1=32, F2=40, 219 total after Form 3A's deliberate skip).
+    # version (F1=32, F2=40, 403 total after Form 3A's deliberate skip).
     assert len(f1) >= 30
     assert len(f2) >= 38
-    assert len(form_terms) >= 200
+    assert len(form_terms) >= 400
     # Guard against a form silently vanishing to a future false restart:
-    # the newest version yields exactly 21 form prefixes (every form with
+    # the newest version yields exactly 25 form prefixes (every form with
     # numbered items, minus Form 3A's deliberate restart skip).
     form_prefixes = {s.section_no.split("-")[1] for s in form_terms}
-    assert len(form_prefixes) == 21
+    assert len(form_prefixes) == 25
     assert any(s.heading == "Rent" for s in f1)
     assert all(s.part == "Schedule 1—Forms" for s in form_terms)
     schedule_clauses = [
@@ -395,21 +422,64 @@ def test_real_regs_cache_yields_form_terms():
     assert len(schedule_clauses) >= 35
 
 
+def _expected_form_term_count(data: bytes) -> int:
+    """Independent scan for the Important-2 completeness check: track
+    form scope with the parser's own opener predicate, count raw-text
+    term matches while a form is open, and drop the forms the parser
+    deliberately discards (Form 3A's restart)."""
+    document = Document(io.BytesIO(data))
+    in_schedule, form_no = False, None
+    per_form: Counter[str] = Counter()
+    for paragraph in document.paragraphs:
+        style_name = paragraph.style.name if paragraph.style is not None else ""
+        if style_name.lower().startswith("toc"):
+            continue
+        text = parser_vic._clean(paragraph.text)
+        if not text:
+            continue
+        if text == "Endnotes":
+            break
+        if parser_vic._SCHEDULE_RE.match(text):
+            in_schedule, form_no = True, None
+            continue
+        if in_schedule and (
+            style_name == parser_vic.FORM_HEADING_STYLE or parser_vic._FORM_RE.fullmatch(text)
+        ):
+            form_match = parser_vic._FORM_RE.match(text)
+            form_no = form_match.group(1).upper() if form_match else form_no
+            continue
+        if form_no is not None and parser_vic._FORM_TERM_RE.match(paragraph.text):
+            per_form[form_no] += 1
+    return sum(count for form, count in per_form.items() if form != "3A")
+
+
 def test_all_cached_regs_versions_have_unique_section_numbers():
     """Pins historical-version robustness: every cached version must
-    parse with no duplicate section_no and no oversized heading,
-    including 001.docx where the Form 5 opener is styled Normal
-    instead of New Form Heading."""
+    parse with no duplicate section_no and no oversized heading or
+    division. Every cached version styles the Form 5 opener as Normal
+    instead of New Form Heading, so this also exercises the exact-text
+    opener fallback. Also cross-checks the parsed form-term count
+    against an independent raw-paragraph scan, so a dropped item can't
+    silently survive because the parser agrees with itself."""
     cached = sorted(REGS_CACHE.glob("*.docx"))
     if not cached:
         pytest.skip("VIC regulations cache not present")
     for path in cached:
-        sections = parse_docx(path.read_bytes())
+        data = path.read_bytes()
+        sections = parse_docx(data)
         counts = Counter(s.section_no for s in sections)
         _, most_common_count = counts.most_common(1)[0]
         assert most_common_count == 1, f"{path.name}: duplicate section_no present"
         max_heading_len = max(len(s.heading) for s in sections)
         assert max_heading_len <= 300, f"{path.name}: heading exceeds column width"
+        max_division_len = max(len(s.division or "") for s in sections)
+        assert max_division_len <= 300, f"{path.name}: division exceeds column width"
+        parsed_form_terms = len([s for s in sections if "-F" in s.section_no])
+        expected_form_terms = _expected_form_term_count(data)
+        assert parsed_form_terms == expected_form_terms, (
+            f"{path.name}: parsed {parsed_form_terms} form terms, "
+            f"independent scan expected {expected_form_terms}"
+        )
 
     first_version_nos = {s.section_no for s in parse_docx(cached[0].read_bytes())}
     assert {"S1-F4-T1", "S1-F5-T1"} <= first_version_nos
