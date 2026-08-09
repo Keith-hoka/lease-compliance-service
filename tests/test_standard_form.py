@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.clause_audit.document import DocumentInput
 from app.clause_audit.standard_form import (
     CONTAINMENT_THRESHOLD,
     NSW_REG_SLUG,
@@ -16,8 +17,11 @@ from app.clause_audit.standard_form import (
     containment,
     fetch_form_terms,
     normalize,
+    run_standard_form,
     screen_terms,
 )
+from app.llm.prompts import STANDARD_FORM_GUIDANCE, standard_form_instruction
+from app.llm.schemas import standard_form_output_model
 from app.models import Act
 from app.schemas.clause_audit import ClauseLeaseInput
 
@@ -170,3 +174,141 @@ async def test_fetch_orders_letter_suffixed_terms_next_to_their_base(corpus_sess
     terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
     nos = [t.section_no for t in terms]
     assert nos.index("S1-F1-T30") < nos.index("S1-F1-T30A") < nos.index("S1-F1-T31")
+
+
+def test_standard_form_instruction_contains_terms_and_rubric():
+    terms = [
+        make_term("1", "RENT", "The tenant agrees to pay rent."),
+        make_term("2", "POSSESSION", "Vacant possession on entry."),
+    ]
+    instruction = standard_form_instruction(date(2026, 8, 9), terms)
+    assert "S1-T1" in instruction and "RENT" in instruction
+    assert "nsw.clause.sf_t1" in instruction and "nsw.clause.sf_t2" in instruction
+    assert "covered" in instruction and "altered_adverse" in instruction
+    assert STANDARD_FORM_GUIDANCE in instruction
+
+
+def test_standard_form_output_model_validates_outcomes():
+    model = standard_form_output_model(["nsw.clause.sf_t1"])
+    parsed = model.model_validate(
+        {
+            "items": [
+                {
+                    "rule_id": "nsw.clause.sf_t1",
+                    "outcome": "missing",
+                    "reasoning": "not found",
+                    "lease_quote": None,
+                    "departure": None,
+                }
+            ]
+        }
+    )
+    assert parsed.items[0].outcome == "missing"
+
+
+def fake_judge(outcomes: dict[str, dict]):
+    """Route each outcome to the batch whose instruction lists its rule_id.
+
+    Matches on "{rule_id} (" - the exact token boundary standard_form_instruction
+    renders ("- {rule_id} ({section_no} ...)") - not bare substring containment:
+    rule ids share numeric prefixes (sf_t1 is a prefix of sf_t10..sf_t19), so a
+    plain `rule_id in instruction` check would leak sf_t1's outcome into any
+    batch that happens to list sf_t10-sf_t19 too.
+    """
+
+    async def judge(doc, instruction, output_model):
+        items = []
+        for rule_id, payload in outcomes.items():
+            if f"{rule_id} (" in instruction:
+                items.append({"rule_id": rule_id, **payload})
+        return output_model.model_validate({"items": items})
+
+    return judge
+
+
+async def test_runner_screens_verbatim_and_judges_residual(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "NSW", date(2026, 8, 9), None)
+    t1 = terms[0]
+    doc = DocumentInput(kind="text", text=f"1. {t1.heading} {t1.body} Nothing else.")
+    judge = fake_judge(
+        {
+            t.rule_id: {
+                "outcome": "missing",
+                "reasoning": "absent",
+                "lease_quote": None,
+                "departure": None,
+            }
+            for t in terms[1:]
+        }
+    )
+    findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "NSW", None)
+    by_id = {f.rule_id: f for f in findings}
+    assert len(findings) == 59
+    assert by_id[t1.rule_id].verdict == "green"
+    assert by_id[t1.rule_id].evidence["method"] == "verbatim"
+    assert by_id[terms[1].rule_id].verdict == "red"
+    assert by_id[terms[1].rule_id].evidence["outcome"] == "missing"
+    assert all(f.citations and f.citations[0].label for f in findings)
+
+
+async def test_runner_dual_citation_for_act_duties(corpus_session):
+    doc = DocumentInput(kind="text", text="An empty lease.")
+    judge = fake_judge({})
+    findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "NSW", None)
+    t19 = next(f for f in findings if f.rule_id == "nsw.clause.sf_t19")
+    assert [c.section_no for c in t19.citations] == ["S1-T19", "52"]
+    assert t19.citations[1].act == "act-2010-042"
+
+
+async def test_runner_altered_and_uncertain_and_quote_downgrade(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    doc = DocumentInput(kind="text", text="A bespoke lease with its own words.")
+    first, second, third = terms[0], terms[1], terms[2]
+    judge = fake_judge(
+        {
+            first.rule_id: {
+                "outcome": "altered_adverse",
+                "reasoning": "notice cut",
+                "lease_quote": "words not in the document",
+                "departure": "notice period shortened",
+            },
+            second.rule_id: {
+                "outcome": "uncertain",
+                "reasoning": "cannot tell",
+                "lease_quote": None,
+                "departure": None,
+            },
+            third.rule_id: {
+                "outcome": "covered",
+                "reasoning": "found",
+                "lease_quote": "own words",
+                "departure": None,
+            },
+        }
+    )
+    findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "VIC", None)
+    by_id = {f.rule_id: f for f in findings}
+    assert by_id[first.rule_id].verdict == "yellow"
+    assert "not found" in by_id[first.rule_id].summary
+    assert by_id[second.rule_id].verdict == "yellow"
+    assert by_id[third.rule_id].verdict == "green"
+    assert by_id[third.rule_id].clause_quote == "own words"
+
+
+async def test_runner_pdf_document_skips_screen(corpus_session):
+    doc = DocumentInput(kind="pdf", pdf=b"%PDF-fake")
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    judge = fake_judge(
+        {
+            t.rule_id: {
+                "outcome": "covered",
+                "reasoning": "in the pdf",
+                "lease_quote": None,
+                "departure": None,
+            }
+            for t in terms
+        }
+    )
+    findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "VIC", None)
+    assert all(f.verdict in {"green", "yellow"} for f in findings)
+    assert not any(f.evidence.get("method") == "verbatim" for f in findings)

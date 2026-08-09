@@ -35,6 +35,18 @@ MANDATORY_GUIDANCE = (
     "clause_quote must be the verbatim term you found."
 )
 
+STANDARD_FORM_GUIDANCE = (
+    "For each prescribed term, outcome covered means the document contains a "
+    "term to that specific effect (quote it verbatim in lease_quote); missing "
+    "means no term in the document covers it; altered_adverse means a "
+    "corresponding term exists but departs from the prescribed text in a way "
+    "that disadvantages the tenant (quote the document's term in lease_quote "
+    "and state the departure in departure); uncertain means you cannot tell - "
+    "prefer uncertain over guessing. Judge substance, not wording: a "
+    "faithful paraphrase is covered. A related but different clause does not "
+    "cover a different term."
+)
+
 
 def clause_instruction(
     family_name: str,
@@ -52,6 +64,18 @@ def clause_instruction(
     )
     for rule_id, question in rules:
         parts.append(f"- {rule_id}: {question}")
+    return "\n\n".join(parts)
+
+
+def standard_form_instruction(as_at: date, terms) -> str:
+    header = (
+        "Check family: standard form comparison. Compare the document against "
+        f"each prescribed term of the standard form in force at {as_at.isoformat()}. "
+        f"Return exactly one item per rule_id. {STANDARD_FORM_GUIDANCE}"
+    )
+    parts = [header]
+    for term in terms:
+        parts.append(f"- {term.rule_id} ({term.section_no} {term.heading}):\n{term.body}")
     return "\n\n".join(parts)
 
 

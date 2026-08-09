@@ -30,6 +30,19 @@ def family_output_model(name: str, rule_ids: list[str]) -> type[BaseModel]:
     return create_model(name, items=(list[item], ...))
 
 
+def standard_form_output_model(rule_ids: list[str]) -> type[BaseModel]:
+    rule_enum = StrEnum("StandardFormRuleId", {rid.replace(".", "_"): rid for rid in rule_ids})
+    item = create_model(
+        "StandardFormItem",
+        rule_id=(rule_enum, ...),
+        outcome=(Literal["covered", "missing", "altered_adverse", "uncertain"], ...),
+        reasoning=(str, ...),
+        lease_quote=(str | None, None),
+        departure=(str | None, None),
+    )
+    return create_model("StandardFormOutput", items=(list[item], ...))
+
+
 class FieldExtraction(BaseModel):
     field: Literal[
         "rent_amount",

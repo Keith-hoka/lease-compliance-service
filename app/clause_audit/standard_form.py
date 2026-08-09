@@ -16,9 +16,15 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.citations import format_citation
+from app.clause_audit.document import DocumentInput
+from app.clause_audit.verify import quote_matches
+from app.llm.client import JudgeFn
+from app.llm.prompts import standard_form_instruction
+from app.llm.schemas import standard_form_output_model
 from app.models import Act, Section
-from app.rules.base import add_months
-from app.schemas.clause_audit import ClauseLeaseInput
+from app.rules.base import Citation, add_months
+from app.schemas.clause_audit import ClauseFinding, ClauseLeaseInput
 
 SHINGLE_TOKENS = 8
 CONTAINMENT_THRESHOLD = 0.9
@@ -218,3 +224,131 @@ async def fetch_form_terms(
     ]
     terms.sort(key=lambda t: _term_sort_key(t.section_no))
     return terms, note
+
+
+BATCH_SIZE = 8
+
+
+def _citations(
+    term: FormTerm, as_at: date, act_section_ids: dict[str, uuid.UUID]
+) -> list[Citation]:
+    cites = [
+        Citation(
+            act=term.act_slug,
+            section_no=term.section_no,
+            as_at=as_at,
+            section_id=term.section_id,
+            label=format_citation(term.section_no),
+        )
+    ]
+    if term.act_duty is not None and term.act_duty in act_section_ids:
+        cites.append(
+            Citation(
+                act=NSW_ACT_SLUG,
+                section_no=term.act_duty,
+                as_at=as_at,
+                section_id=act_section_ids[term.act_duty],
+                label=format_citation(term.act_duty),
+            )
+        )
+    return cites
+
+
+async def _act_duty_section_ids(session: AsyncSession, as_at: date) -> dict[str, uuid.UUID]:
+    query = (
+        select(Section)
+        .join(Act, Act.id == Section.act_id)
+        .where(
+            Act.slug == NSW_ACT_SLUG,
+            Section.section_no.in_(NSW_ACT_DUTIES.values()),
+            Section.valid_from <= as_at,
+            (Section.valid_to.is_(None)) | (Section.valid_to > as_at),
+        )
+    )
+    sections = (await session.execute(query)).scalars().all()
+    return {s.section_no: s.id for s in sections}
+
+
+_OUTCOME_VERDICTS = {
+    "covered": "green",
+    "missing": "red",
+    "altered_adverse": "red",
+    "uncertain": "yellow",
+}
+_QUOTE_REQUIRED = {"covered", "altered_adverse"}
+
+
+async def run_standard_form(
+    judge: JudgeFn,
+    session: AsyncSession,
+    doc: DocumentInput,
+    as_at: date,
+    jurisdiction: str,
+    lease: ClauseLeaseInput | None,
+) -> list[ClauseFinding]:
+    terms, note = await fetch_form_terms(session, jurisdiction, as_at, lease)
+    act_ids = await _act_duty_section_ids(session, as_at) if jurisdiction != "VIC" else {}
+    findings: list[ClauseFinding] = []
+
+    if doc.text is not None:
+        green, residual = screen_terms(terms, doc.text)
+    else:
+        green, residual = [], list(terms)
+    for term, ratio in green:
+        findings.append(
+            ClauseFinding(
+                rule_id=term.rule_id,
+                verdict="green",
+                summary="Prescribed term present verbatim." + (f" ({note})" if note else ""),
+                evidence={"method": "verbatim", "containment": round(ratio, 3)},
+                citations=_citations(term, as_at, act_ids),
+            )
+        )
+
+    # Release the read-only transaction so it does not idle across the model await.
+    await session.commit()
+    for start in range(0, len(residual), BATCH_SIZE):
+        batch = residual[start : start + BATCH_SIZE]
+        instruction = standard_form_instruction(as_at, batch)
+        output_model = standard_form_output_model([t.rule_id for t in batch])
+        result = await judge(doc, instruction, output_model)
+        by_id = {item.rule_id: item for item in result.items}
+        for term in batch:
+            item = by_id.get(term.rule_id)
+            citations = _citations(term, as_at, act_ids)
+            if item is None:
+                findings.append(
+                    ClauseFinding(
+                        rule_id=term.rule_id,
+                        verdict="yellow",
+                        summary="The model did not report on this term.",
+                        citations=citations,
+                    )
+                )
+                continue
+            verdict = _OUTCOME_VERDICTS[item.outcome]
+            summary = item.reasoning
+            quote = item.lease_quote
+            if item.outcome in _QUOTE_REQUIRED and doc.text is not None:
+                if quote is None:
+                    verdict, summary = "yellow", f"Downgraded: {item.outcome} carried no quote."
+                elif not quote_matches(quote, doc.text):
+                    verdict, summary = (
+                        "yellow",
+                        "Downgraded: quoted text was not found in the document.",
+                    )
+            if item.outcome == "altered_adverse" and item.departure:
+                summary = f"{summary} Departure: {item.departure}"
+            if note:
+                summary = f"{summary} ({note})"
+            findings.append(
+                ClauseFinding(
+                    rule_id=term.rule_id,
+                    verdict=verdict,
+                    summary=summary,
+                    evidence={"outcome": item.outcome, "reasoning": item.reasoning},
+                    citations=citations,
+                    clause_quote=quote,
+                )
+            )
+    return findings
