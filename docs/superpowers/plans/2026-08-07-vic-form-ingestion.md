@@ -4,7 +4,7 @@
 
 **Goal:** All prescribed forms' numbered terms in VIC Regs 2021 Schedule 1 (25 form openers in versions 001-004 and 27 in 005-009 - Forms 1-25 plus 3A and 16A; 376 terms in 001-004 and 404 in 005-009 once Form 3A's unkeyable restart is excluded - including Form 1's 32 and Form 2's 40 rental-agreement terms) land in the corpus point-in-time under `S1-F{k}-T{m}` keys.
 
-**Architecture:** `parse_docx` gains a form sweep active inside schedule regions: "New Form Heading" paragraphs open form scopes and titles, raw-text `^N.\t` or `^N. \t` paragraphs start terms (two source conventions; the tab must be matched before `_clean` collapses it), Side Notes are skipped within forms only; the VIC Regulations instrument is wiped and rebuilt from the DOCX cache; the CI dump is refreshed; production follows over the tunnel.
+**Architecture:** `parse_docx` gains a form sweep active inside schedule regions: "New Form Heading" paragraphs open form scopes and titles, raw-text `^N.\t`, `^N. \t`, or dotless `^N \t` paragraphs start terms (three source shapes, the dot optional; the tab must be matched before `_clean` collapses it), Side Notes are skipped within forms only; the VIC Regulations instrument is wiped and rebuilt from the DOCX cache; the CI dump is refreshed; production follows over the tunnel.
 
 **Tech Stack:** existing python-docx parser, existing loader - no new dependencies, no schema changes.
 

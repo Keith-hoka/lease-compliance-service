@@ -21,9 +21,10 @@ with a "Heading - PART"-style "Schedule 1—Forms" paragraph; inside it,
 "New Form Heading"-style paragraphs matching `^Form (\d+[A-Z]?)\b` open
 a form scope, the immediately following New Form Heading paragraph is
 the form's title, and `PART ...` headings (same style) subdivide a form
-without closing it. Terms are paragraphs matching `^(\d+[A-Z]?)\. *\t` -
-the source uses two numbering conventions, a bare dot-tab and a
-dot-space-tab - numbered continuously across a form's PARTs.
+without closing it. Terms are paragraphs matching `^(\d+[A-Z]?)\.? *\t` -
+the source uses three numbering shapes: bare dot-tab, dot-space-tab,
+and one dotless "7 " + tab typo (Form 19) - numbered continuously
+across a form's PARTs.
 
 `parse_docx` gains a form sweep inside schedule regions:
 
