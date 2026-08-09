@@ -41,6 +41,9 @@ def test_normalize_strips_placeholders_and_unifies_punctuation():
     assert "—" not in cleaned and "“" not in cleaned
     assert "*" not in cleaned
     assert cleaned == cleaned.lower()
+    tokens = cleaned.split()
+    assert "agrees" in tokens and "to" in tokens
+    assert "agrees-to" not in tokens
 
 
 def test_containment_full_copy_is_high_and_reordering_immune():
@@ -63,7 +66,7 @@ def test_containment_drops_on_alteration():
         "the premises during the tenancy period."
     )
     altered = term.replace("7 days", "no")
-    assert containment(term, altered) < 1.0
+    assert containment(term, altered) < CONTAINMENT_THRESHOLD
 
 
 def test_screen_partitions_verbatim_from_residual_and_short_terms():
@@ -81,11 +84,22 @@ def test_screen_partitions_verbatim_from_residual_and_short_terms():
         ),
     )
     short = make_term("3", "TERMINATION", "See the Act.")
-    document = f"1. {long_body} 2. Something entirely different about parking."
-    green, residual = screen_terms([copied, missing, short], document)
+    # Synthetic VIC-table-content case: heading (10 tokens) padding pushes
+    # heading+body to 15 tokens, but the body alone (5 tokens) is under
+    # MIN_SCREEN_TOKENS, so this must land in residual even though the
+    # document contains its heading and body verbatim (a naive
+    # heading+body-only length check would wrongly screen it green).
+    table_heading = "LANDLORD AGREES TO PROVIDE CERTAIN ADDITIONAL FACILITIES AND SERVICES TODAY"
+    table_body = "See the attached schedule table."
+    table_like = make_term("4", table_heading, table_body)
+    document = (
+        f"1. {long_body} 2. Something entirely different about parking. "
+        f"4. {table_heading} {table_body}"
+    )
+    green, residual = screen_terms([copied, missing, short, table_like], document)
     assert [t.section_no for t, _ in green] == ["S1-T1"]
     assert green[0][1] >= CONTAINMENT_THRESHOLD
-    assert [t.section_no for t in residual] == ["S1-T2", "S1-T3"]
+    assert [t.section_no for t in residual] == ["S1-T2", "S1-T3", "S1-T4"]
 
 
 @pytest.fixture
@@ -149,3 +163,10 @@ async def test_fetch_is_point_in_time(corpus_session):
     terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2025, 11, 25), None)
     nos = {t.section_no for t in terms}
     assert "S1-F1-T30A" in nos
+
+
+async def test_fetch_orders_letter_suffixed_terms_next_to_their_base(corpus_session):
+    """A letter-suffixed term (T30A) sorts next to its base number, not last."""
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    nos = [t.section_no for t in terms]
+    assert nos.index("S1-F1-T30") < nos.index("S1-F1-T30A") < nos.index("S1-F1-T31")
