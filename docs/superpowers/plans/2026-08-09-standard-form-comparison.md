@@ -235,7 +235,7 @@ before committing; adjust if the text says otherwise):
 
 ```python
 NSW_ACT_DUTIES = {
-    "3": "33",   # tenant must pay rent
+    "3": "33",  # tenant must pay rent
     "15": "50",  # quiet enjoyment
     "16": "51",  # use of premises
     "19": "52",  # premises reasonably clean and fit for habitation
@@ -293,28 +293,42 @@ def test_normalize_strips_placeholders_and_unifies_punctuation():
 
 
 def test_containment_full_copy_is_high_and_reordering_immune():
-    term = ("The landlord agrees to provide the residential premises in a "
-            "reasonable state of cleanliness and fit for habitation by the tenant.")
-    lease = ("CLAUSE 40. Unrelated preamble text here. " + term +
-             " CLAUSE 41. More unrelated text follows the copied term.")
+    term = (
+        "The landlord agrees to provide the residential premises in a "
+        "reasonable state of cleanliness and fit for habitation by the tenant."
+    )
+    lease = (
+        "CLAUSE 40. Unrelated preamble text here. "
+        + term
+        + " CLAUSE 41. More unrelated text follows the copied term."
+    )
     assert containment(term, lease) >= CONTAINMENT_THRESHOLD
 
 
 def test_containment_drops_on_alteration():
-    term = ("The landlord agrees to give the tenant at least 7 days written "
-            "notice before entering the premises for a routine inspection of "
-            "the premises during the tenancy period.")
+    term = (
+        "The landlord agrees to give the tenant at least 7 days written "
+        "notice before entering the premises for a routine inspection of "
+        "the premises during the tenancy period."
+    )
     altered = term.replace("7 days", "no")
     assert containment(term, altered) < 1.0
 
 
 def test_screen_partitions_verbatim_from_residual_and_short_terms():
-    long_body = ("The tenant agrees to pay the rent on time and in the manner "
-                 "stated in this agreement for the duration of the tenancy period.")
+    long_body = (
+        "The tenant agrees to pay the rent on time and in the manner "
+        "stated in this agreement for the duration of the tenancy period."
+    )
     copied = make_term("1", "RENT", long_body)
-    missing = make_term("2", "POSSESSION", (
-        "The landlord agrees to give the tenant vacant possession of the "
-        "premises on the day the tenant is entitled to enter into occupation."))
+    missing = make_term(
+        "2",
+        "POSSESSION",
+        (
+            "The landlord agrees to give the tenant vacant possession of the "
+            "premises on the day the tenant is entitled to enter into occupation."
+        ),
+    )
     short = make_term("3", "TERMINATION", "See the Act.")
     document = f"1. {long_body} 2. Something entirely different about parking."
     green, residual = screen_terms([copied, missing, short], document)
@@ -389,9 +403,12 @@ def normalize(text: str) -> str:
     cleaned = _PLACEHOLDER_RE.sub(" ", text)
     cleaned = _STAR_OPTION_RE.sub(" ", cleaned)
     cleaned = (
-        cleaned.replace("‘", "'").replace("’", "'")
-        .replace("“", '"').replace("”", '"')
-        .replace("—", "-").replace("–", "-")
+        cleaned.replace("‘", "'")
+        .replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("—", "-")
+        .replace("–", "-")
     )
     cleaned = re.sub(r"[^\w\s'\"-]", " ", cleaned.lower())
     return re.sub(r"\s+", " ", cleaned).strip()
@@ -400,13 +417,11 @@ def normalize(text: str) -> str:
 def _tokens(text: str) -> list[str]:
     return normalize(text).split()
 
+
 def _shingles(tokens: list[str]) -> set[tuple[str, ...]]:
     if len(tokens) < SHINGLE_TOKENS:
         return set()
-    return {
-        tuple(tokens[i : i + SHINGLE_TOKENS])
-        for i in range(len(tokens) - SHINGLE_TOKENS + 1)
-    }
+    return {tuple(tokens[i : i + SHINGLE_TOKENS]) for i in range(len(tokens) - SHINGLE_TOKENS + 1)}
 
 
 def containment(term_text: str, document_text: str) -> float:
@@ -484,9 +499,7 @@ async def fetch_form_terms(
             body=body,
             section_id=section_id,
             act_slug=slug,
-            act_duty=(
-                NSW_ACT_DUTIES.get(_term_no(no)) if jurisdiction != "VIC" else None
-            ),
+            act_duty=(NSW_ACT_DUTIES.get(_term_no(no)) if jurisdiction != "VIC" else None),
         )
         for section_id, no, heading, body in rows
     ]
@@ -592,8 +605,10 @@ from app.llm.schemas import standard_form_output_model
 
 
 def test_standard_form_instruction_contains_terms_and_rubric():
-    terms = [make_term("1", "RENT", "The tenant agrees to pay rent."),
-             make_term("2", "POSSESSION", "Vacant possession on entry.")]
+    terms = [
+        make_term("1", "RENT", "The tenant agrees to pay rent."),
+        make_term("2", "POSSESSION", "Vacant possession on entry."),
+    ]
     instruction = standard_form_instruction(date(2026, 8, 9), terms)
     assert "S1-T1" in instruction and "RENT" in instruction
     assert "nsw.clause.sf_t1" in instruction and "nsw.clause.sf_t2" in instruction
@@ -604,8 +619,17 @@ def test_standard_form_instruction_contains_terms_and_rubric():
 def test_standard_form_output_model_validates_outcomes():
     model = standard_form_output_model(["nsw.clause.sf_t1"])
     parsed = model.model_validate(
-        {"items": [{"rule_id": "nsw.clause.sf_t1", "outcome": "missing",
-                    "reasoning": "not found", "lease_quote": None, "departure": None}]}
+        {
+            "items": [
+                {
+                    "rule_id": "nsw.clause.sf_t1",
+                    "outcome": "missing",
+                    "reasoning": "not found",
+                    "lease_quote": None,
+                    "departure": None,
+                }
+            ]
+        }
     )
     assert parsed.items[0].outcome == "missing"
 ```
@@ -639,9 +663,7 @@ def standard_form_instruction(as_at: date, terms) -> str:
         f"Return exactly one item per rule_id. {STANDARD_FORM_GUIDANCE}"
     ]
     for term in terms:
-        parts.append(
-            f"- {term.rule_id} ({term.section_no} {term.heading}):\n{term.body}"
-        )
+        parts.append(f"- {term.rule_id} ({term.section_no} {term.heading}):\n{term.body}")
     return "\n\n".join(parts)
 ```
 
@@ -696,9 +718,15 @@ async def test_runner_screens_verbatim_and_judges_residual(session):
     t1 = terms[0]
     doc = DocumentInput(kind="text", text=f"1. {t1.heading} {t1.body} Nothing else.")
     judge = fake_judge(
-        {t.rule_id: {"outcome": "missing", "reasoning": "absent",
-                     "lease_quote": None, "departure": None}
-         for t in terms[1:]}
+        {
+            t.rule_id: {
+                "outcome": "missing",
+                "reasoning": "absent",
+                "lease_quote": None,
+                "departure": None,
+            }
+            for t in terms[1:]
+        }
     )
     findings = await run_standard_form(judge, session, doc, date(2026, 8, 9), "NSW", None)
     by_id = {f.rule_id: f for f in findings}
@@ -723,15 +751,28 @@ async def test_runner_altered_and_uncertain_and_quote_downgrade(session):
     terms, _ = await fetch_form_terms(session, "VIC", date(2026, 8, 9), None)
     doc = DocumentInput(kind="text", text="A bespoke lease with its own words.")
     first, second, third = terms[0], terms[1], terms[2]
-    judge = fake_judge({
-        first.rule_id: {"outcome": "altered_adverse", "reasoning": "notice cut",
-                        "lease_quote": "words not in the document",
-                        "departure": "notice period shortened"},
-        second.rule_id: {"outcome": "uncertain", "reasoning": "cannot tell",
-                         "lease_quote": None, "departure": None},
-        third.rule_id: {"outcome": "covered", "reasoning": "found",
-                        "lease_quote": "own words", "departure": None},
-    })
+    judge = fake_judge(
+        {
+            first.rule_id: {
+                "outcome": "altered_adverse",
+                "reasoning": "notice cut",
+                "lease_quote": "words not in the document",
+                "departure": "notice period shortened",
+            },
+            second.rule_id: {
+                "outcome": "uncertain",
+                "reasoning": "cannot tell",
+                "lease_quote": None,
+                "departure": None,
+            },
+            third.rule_id: {
+                "outcome": "covered",
+                "reasoning": "found",
+                "lease_quote": "own words",
+                "departure": None,
+            },
+        }
+    )
     findings = await run_standard_form(judge, session, doc, date(2026, 8, 9), "VIC", None)
     by_id = {f.rule_id: f for f in findings}
     assert by_id[first.rule_id].verdict == "yellow"
@@ -745,9 +786,15 @@ async def test_runner_pdf_document_skips_screen(session):
     doc = DocumentInput(kind="pdf", pdf=b"%PDF-fake")
     terms, _ = await fetch_form_terms(session, "VIC", date(2026, 8, 9), None)
     judge = fake_judge(
-        {t.rule_id: {"outcome": "covered", "reasoning": "in the pdf",
-                     "lease_quote": None, "departure": None}
-         for t in terms}
+        {
+            t.rule_id: {
+                "outcome": "covered",
+                "reasoning": "in the pdf",
+                "lease_quote": None,
+                "departure": None,
+            }
+            for t in terms
+        }
     )
     findings = await run_standard_form(judge, session, doc, date(2026, 8, 9), "VIC", None)
     assert all(f.verdict in {"green", "yellow"} for f in findings)
@@ -784,7 +831,9 @@ from app.schemas.clause_audit import ClauseFinding
 BATCH_SIZE = 8
 
 
-def _citations(term: FormTerm, as_at: date, act_section_ids: dict[str, uuid.UUID]) -> list[Citation]:
+def _citations(
+    term: FormTerm, as_at: date, act_section_ids: dict[str, uuid.UUID]
+) -> list[Citation]:
     cites = [
         Citation(
             act=term.act_slug,
@@ -821,8 +870,12 @@ async def _act_duty_section_ids(session: AsyncSession, as_at: date) -> dict[str,
     return dict(rows)
 
 
-_OUTCOME_VERDICTS = {"covered": "green", "missing": "red",
-                     "altered_adverse": "red", "uncertain": "yellow"}
+_OUTCOME_VERDICTS = {
+    "covered": "green",
+    "missing": "red",
+    "altered_adverse": "red",
+    "uncertain": "yellow",
+}
 _QUOTE_REQUIRED = {"covered", "altered_adverse"}
 
 
@@ -847,8 +900,7 @@ async def run_standard_form(
             ClauseFinding(
                 rule_id=term.rule_id,
                 verdict="green",
-                summary="Prescribed term present verbatim."
-                + (f" ({note})" if note else ""),
+                summary="Prescribed term present verbatim." + (f" ({note})" if note else ""),
                 evidence={"method": "verbatim", "containment": round(ratio, 3)},
                 citations=_citations(term, as_at, act_ids),
             )
@@ -881,7 +933,10 @@ async def run_standard_form(
                 if quote is None:
                     verdict, summary = "yellow", f"Downgraded: {item.outcome} carried no quote."
                 elif not quote_matches(quote, doc.text):
-                    verdict, summary = "yellow", "Downgraded: quoted text was not found in the document."
+                    verdict, summary = (
+                        "yellow",
+                        "Downgraded: quoted text was not found in the document.",
+                    )
             if item.outcome == "altered_adverse" and item.departure:
                 summary = f"{summary} Departure: {item.departure}"
             if note:
@@ -1021,8 +1076,13 @@ are filled with fixture values so verbatim baselines screen green."""
 
 import re
 
-FILLERS = {"amount": "$550.00", "date": "1 March 2026", "name": "Alex Tenant",
-           "address": "1 Example Street, Sydney NSW 2000"}
+FILLERS = {
+    "amount": "$550.00",
+    "date": "1 March 2026",
+    "name": "Alex Tenant",
+    "address": "1 Example Street, Sydney NSW 2000",
+}
+
 
 def _fill(text: str) -> str:
     def repl(match: re.Match) -> str:
@@ -1034,6 +1094,7 @@ def _fill(text: str) -> str:
         if "address" in inner:
             return FILLERS["address"]
         return FILLERS["name"]
+
     return re.sub(r"\[[^\]]*\]", repl, text).replace("*", "")
 
 
@@ -1102,9 +1163,12 @@ async def test_verbatim_document_screens_all_screenable_terms_green(session):
     terms, _ = await fetch_form_terms(session, "NSW", date(2026, 8, 9), None)
     document = build_verbatim(terms)
     green, residual = screen_terms(terms, document)
-    screenable = [t for t in terms
-                  if len(normalize(f"{t.heading} {t.body}").split()) >= 12
-                  and len(normalize(t.body).split()) >= 12]
+    screenable = [
+        t
+        for t in terms
+        if len(normalize(f"{t.heading} {t.body}").split()) >= 12
+        and len(normalize(t.body).split()) >= 12
+    ]
     assert {t.section_no for t, _ in green} == {t.section_no for t in screenable}
 
 
