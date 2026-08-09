@@ -36,6 +36,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.citations import format_citation
 from app.models import Act
 from app.rules.base import Citation, SectionRef
 from app.rules.nsw import COMMENCED
@@ -275,7 +276,11 @@ async def resolve_rule(session: AsyncSession, rule: ClauseRule, as_at: date) -> 
         return None
     act = await session.get(Act, section.act_id)
     return Citation(
-        act=act.title, section_no=rule.ref.section_no, as_at=as_at, section_id=section.id
+        act=act.title,
+        section_no=rule.ref.section_no,
+        as_at=as_at,
+        section_id=section.id,
+        label=format_citation(rule.ref.section_no),
     )
 
 

@@ -24,6 +24,7 @@ class Citation(BaseModel):
     section_no: str
     as_at: date
     section_id: uuid.UUID
+    label: str | None = None
 
 
 class Finding(BaseModel):

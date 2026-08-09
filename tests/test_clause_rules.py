@@ -101,3 +101,9 @@ async def test_contractor_reg_rule_resolves_historical_text(corpus_session):
     assert citation is not None
     texts = await statutory_texts(corpus_session, [reg_rule], historical)
     assert "specified person" in texts[("sl-2019-0629", "5")]
+
+
+async def test_resolve_rule_sets_citation_label(corpus_session):
+    citation = await resolve_rule(corpus_session, PROHIBITED_RULES[0], AS_AT)
+    assert citation is not None
+    assert citation.label == "s 19"
