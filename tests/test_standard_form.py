@@ -5,6 +5,7 @@ from datetime import date
 
 import asyncpg
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -206,23 +207,46 @@ def test_standard_form_output_model_validates_outcomes():
     assert parsed.items[0].outcome == "missing"
 
 
-def fake_judge(outcomes: dict[str, dict]):
+def test_standard_form_output_model_rejects_out_of_batch_rule_id():
+    """A rule_id valid in general but foreign to this batch's model must fail."""
+    model = standard_form_output_model(["nsw.clause.sf_t1", "nsw.clause.sf_t2"])
+    with pytest.raises(ValidationError):
+        model.model_validate(
+            {
+                "items": [
+                    {
+                        "rule_id": "nsw.clause.sf_t99",
+                        "outcome": "missing",
+                        "reasoning": "not in this batch",
+                        "lease_quote": None,
+                        "departure": None,
+                    }
+                ]
+            }
+        )
+
+
+def make_fake_judge(outcomes: dict[str, dict]):
     """Route each outcome to the batch whose instruction lists its rule_id.
 
     Matches on "{rule_id} (" - the exact token boundary standard_form_instruction
     renders ("- {rule_id} ({section_no} ...)") - not bare substring containment:
     rule ids share numeric prefixes (sf_t1 is a prefix of sf_t10..sf_t19), so a
     plain `rule_id in instruction` check would leak sf_t1's outcome into any
-    batch that happens to list sf_t10-sf_t19 too.
+    batch that happens to list sf_t10-sf_t19 too. Every call is recorded on
+    judge.calls so tests can assert batch counts.
     """
+    calls: list[tuple] = []
 
     async def judge(doc, instruction, output_model):
+        calls.append((doc, instruction, output_model))
         items = []
         for rule_id, payload in outcomes.items():
             if f"{rule_id} (" in instruction:
                 items.append({"rule_id": rule_id, **payload})
         return output_model.model_validate({"items": items})
 
+    judge.calls = calls
     return judge
 
 
@@ -230,7 +254,7 @@ async def test_runner_screens_verbatim_and_judges_residual(corpus_session):
     terms, _ = await fetch_form_terms(corpus_session, "NSW", date(2026, 8, 9), None)
     t1 = terms[0]
     doc = DocumentInput(kind="text", text=f"1. {t1.heading} {t1.body} Nothing else.")
-    judge = fake_judge(
+    judge = make_fake_judge(
         {
             t.rule_id: {
                 "outcome": "missing",
@@ -253,18 +277,20 @@ async def test_runner_screens_verbatim_and_judges_residual(corpus_session):
 
 async def test_runner_dual_citation_for_act_duties(corpus_session):
     doc = DocumentInput(kind="text", text="An empty lease.")
-    judge = fake_judge({})
+    judge = make_fake_judge({})
     findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "NSW", None)
+    assert len(judge.calls) == 8  # 59 all-residual terms / BATCH_SIZE 8, rounded up
     t19 = next(f for f in findings if f.rule_id == "nsw.clause.sf_t19")
     assert [c.section_no for c in t19.citations] == ["S1-T19", "52"]
     assert t19.citations[1].act == "act-2010-042"
 
 
 async def test_runner_altered_and_uncertain_and_quote_downgrade(corpus_session):
-    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    terms, note = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
     doc = DocumentInput(kind="text", text="A bespoke lease with its own words.")
-    first, second, third = terms[0], terms[1], terms[2]
-    judge = fake_judge(
+    first, second, third, fourth = terms[0], terms[1], terms[2], terms[3]
+    unreported = terms[4]
+    judge = make_fake_judge(
         {
             first.rule_id: {
                 "outcome": "altered_adverse",
@@ -284,21 +310,35 @@ async def test_runner_altered_and_uncertain_and_quote_downgrade(corpus_session):
                 "lease_quote": "own words",
                 "departure": None,
             },
+            fourth.rule_id: {
+                "outcome": "covered",
+                "reasoning": "found but unquoted",
+                "lease_quote": None,
+                "departure": None,
+            },
         }
     )
     findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "VIC", None)
     by_id = {f.rule_id: f for f in findings}
+    assert note is not None  # VIC + no lease defaults to Form 1 and notes the default
+    assert all(note in f.summary for f in findings)
+
     assert by_id[first.rule_id].verdict == "yellow"
     assert "not found" in by_id[first.rule_id].summary
+    assert "Departure: notice period shortened" in by_id[first.rule_id].summary
     assert by_id[second.rule_id].verdict == "yellow"
     assert by_id[third.rule_id].verdict == "green"
     assert by_id[third.rule_id].clause_quote == "own words"
+    assert by_id[fourth.rule_id].verdict == "yellow"
+    assert "Downgraded: covered outcome carried no quote." in by_id[fourth.rule_id].summary
+    assert by_id[unreported.rule_id].verdict == "yellow"
+    assert "did not report" in by_id[unreported.rule_id].summary
 
 
 async def test_runner_pdf_document_skips_screen(corpus_session):
     doc = DocumentInput(kind="pdf", pdf=b"%PDF-fake")
     terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
-    judge = fake_judge(
+    judge = make_fake_judge(
         {
             t.rule_id: {
                 "outcome": "covered",

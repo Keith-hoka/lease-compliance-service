@@ -5,7 +5,9 @@ term's prescribed text into 8-token windows and computes the fraction found
 in the lease text; verbatim or near-verbatim terms (containment >= 0.9) are
 green without any LLM call. Terms with fewer than 12 usable tokens - or a
 prescribed body under 12 tokens, the VIC table-content limitation - always
-go to the LLM.
+go to the LLM. run_standard_form orchestrates both passes: it screens,
+then judges the residual terms in batches, citing each against the
+prescribed form and, for NSW terms with a mapped Act duty, that section too.
 """
 
 import re
@@ -232,6 +234,7 @@ BATCH_SIZE = 8
 def _citations(
     term: FormTerm, as_at: date, act_section_ids: dict[str, uuid.UUID]
 ) -> list[Citation]:
+    """Cite the prescribed-form term, plus its mapped Act duty section if any."""
     cites = [
         Citation(
             act=term.act_slug,
@@ -255,6 +258,7 @@ def _citations(
 
 
 async def _act_duty_section_ids(session: AsyncSession, as_at: date) -> dict[str, uuid.UUID]:
+    """Point-in-time section ids for the Act duties NSW terms are dual-cited against."""
     query = (
         select(Section)
         .join(Act, Act.id == Section.act_id)
@@ -267,6 +271,11 @@ async def _act_duty_section_ids(session: AsyncSession, as_at: date) -> dict[str,
     )
     sections = (await session.execute(query)).scalars().all()
     return {s.section_no: s.id for s in sections}
+
+
+def _append_note(summary: str, note: str | None) -> str:
+    """Append the VIC form-selection caveat (if any) to a finding's summary."""
+    return f"{summary} ({note})" if note else summary
 
 
 _OUTCOME_VERDICTS = {
@@ -286,6 +295,18 @@ async def run_standard_form(
     jurisdiction: str,
     lease: ClauseLeaseInput | None,
 ) -> list[ClauseFinding]:
+    """Screen prescribed terms deterministically, then judge the residual in batches.
+
+    The judge assigns each residual term one of four outcomes: covered (a
+    term to that effect is present), missing (no term covers it),
+    altered_adverse (a corresponding term exists but departs from the
+    prescribed text against the tenant), or uncertain. covered and
+    altered_adverse must carry a lease_quote that verifies against the
+    document text; a missing or unverifiable quote downgrades the finding
+    to yellow (skipped on the PDF path, where there is no document text to
+    verify against). Residual terms are judged BATCH_SIZE at a time so each
+    structured-output call's rule_id enum stays small.
+    """
     terms, note = await fetch_form_terms(session, jurisdiction, as_at, lease)
     act_ids = await _act_duty_section_ids(session, as_at) if jurisdiction != "VIC" else {}
     findings: list[ClauseFinding] = []
@@ -299,7 +320,7 @@ async def run_standard_form(
             ClauseFinding(
                 rule_id=term.rule_id,
                 verdict="green",
-                summary="Prescribed term present verbatim." + (f" ({note})" if note else ""),
+                summary=_append_note("Prescribed term present verbatim.", note),
                 evidence={"method": "verbatim", "containment": round(ratio, 3)},
                 citations=_citations(term, as_at, act_ids),
             )
@@ -309,10 +330,13 @@ async def run_standard_form(
     await session.commit()
     for start in range(0, len(residual), BATCH_SIZE):
         batch = residual[start : start + BATCH_SIZE]
+        batch_no = start // BATCH_SIZE + 1
         instruction = standard_form_instruction(as_at, batch)
-        output_model = standard_form_output_model([t.rule_id for t in batch])
+        output_model = standard_form_output_model(
+            [t.rule_id for t in batch], name=f"StandardFormOutput{batch_no}"
+        )
         result = await judge(doc, instruction, output_model)
-        by_id = {item.rule_id: item for item in result.items}
+        by_id = {str(item.rule_id): item for item in result.items}
         for term in batch:
             item = by_id.get(term.rule_id)
             citations = _citations(term, as_at, act_ids)
@@ -321,7 +345,7 @@ async def run_standard_form(
                     ClauseFinding(
                         rule_id=term.rule_id,
                         verdict="yellow",
-                        summary="The model did not report on this term.",
+                        summary=_append_note("The model did not report on this term.", note),
                         citations=citations,
                     )
                 )
@@ -331,7 +355,8 @@ async def run_standard_form(
             quote = item.lease_quote
             if item.outcome in _QUOTE_REQUIRED and doc.text is not None:
                 if quote is None:
-                    verdict, summary = "yellow", f"Downgraded: {item.outcome} carried no quote."
+                    verdict = "yellow"
+                    summary = f"Downgraded: {item.outcome} outcome carried no quote."
                 elif not quote_matches(quote, doc.text):
                     verdict, summary = (
                         "yellow",
@@ -339,8 +364,7 @@ async def run_standard_form(
                     )
             if item.outcome == "altered_adverse" and item.departure:
                 summary = f"{summary} Departure: {item.departure}"
-            if note:
-                summary = f"{summary} ({note})"
+            summary = _append_note(summary, note)
             findings.append(
                 ClauseFinding(
                     rule_id=term.rule_id,

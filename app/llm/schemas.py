@@ -30,17 +30,25 @@ def family_output_model(name: str, rule_ids: list[str]) -> type[BaseModel]:
     return create_model(name, items=(list[item], ...))
 
 
-def standard_form_output_model(rule_ids: list[str]) -> type[BaseModel]:
-    rule_enum = StrEnum("StandardFormRuleId", {rid.replace(".", "_"): rid for rid in rule_ids})
+def standard_form_output_model(
+    rule_ids: list[str], name: str = "StandardFormOutput"
+) -> type[BaseModel]:
+    """Build a batch-scoped output model whose rule_id is locked to rule_ids.
+
+    name distinguishes one batch's model from another's (e.g. per-batch
+    "StandardFormOutput1", "StandardFormOutput2") so judge call logs, which
+    key on the output model's class name, are attributable to a batch.
+    """
+    rule_enum = StrEnum(f"{name}RuleId", {rid.replace(".", "_"): rid for rid in rule_ids})
     item = create_model(
-        "StandardFormItem",
+        f"{name}Item",
         rule_id=(rule_enum, ...),
         outcome=(Literal["covered", "missing", "altered_adverse", "uncertain"], ...),
         reasoning=(str, ...),
         lease_quote=(str | None, None),
         departure=(str | None, None),
     )
-    return create_model("StandardFormOutput", items=(list[item], ...))
+    return create_model(name, items=(list[item], ...))
 
 
 class FieldExtraction(BaseModel):

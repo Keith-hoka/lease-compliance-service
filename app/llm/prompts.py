@@ -1,8 +1,12 @@
 """Prompt text. SYSTEM is byte-identical across families so the cache prefix holds."""
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 from app.llm.schemas import FIELD_NAMES
+
+if TYPE_CHECKING:
+    from app.clause_audit.standard_form import FormTerm
 
 SYSTEM = (
     "You are a compliance checker for Australian residential tenancy documents. "
@@ -67,7 +71,8 @@ def clause_instruction(
     return "\n\n".join(parts)
 
 
-def standard_form_instruction(as_at: date, terms) -> str:
+def standard_form_instruction(as_at: date, terms: "list[FormTerm]") -> str:
+    """Render one judge instruction for a batch of prescribed terms in force at as_at."""
     header = (
         "Check family: standard form comparison. Compare the document against "
         f"each prescribed term of the standard form in force at {as_at.isoformat()}. "
