@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.clause_audit.rules import (
-    MANDATORY_RULES,
     PROHIBITED_RULES,
     ClauseRule,
     resolve_rule,
@@ -20,12 +19,10 @@ AS_AT = date(2026, 7, 28)
 
 
 def test_rule_lists_are_populated_and_distinct():
-    ids = [r.rule_id for r in PROHIBITED_RULES + MANDATORY_RULES]
+    ids = [r.rule_id for r in PROHIBITED_RULES]
     assert len(ids) == len(set(ids))
     assert any(r.rule_id == "nsw.clause.carpet_cleaning" for r in PROHIBITED_RULES)
     assert all(r.family == "prohibited" for r in PROHIBITED_RULES)
-    assert all(r.family == "mandatory" for r in MANDATORY_RULES)
-    assert 5 <= len(MANDATORY_RULES) <= 8
 
 
 def test_rule_active_windows():
@@ -65,7 +62,7 @@ async def corpus_session():
 
 
 async def test_every_rule_resolves_on_the_corpus(corpus_session):
-    for rule in PROHIBITED_RULES + MANDATORY_RULES:
+    for rule in PROHIBITED_RULES:
         citation = await resolve_rule(corpus_session, rule, AS_AT)
         assert citation is not None, rule.rule_id
         assert citation.as_at == AS_AT
@@ -79,13 +76,11 @@ async def test_statutory_texts_dedupes_shared_sections(corpus_session):
 
 
 def test_golden_covers_every_rule_active_at_eval_date():
-    from tests.golden.clauses import MANDATORY_CASES, PROHIBITED_CASES
+    from tests.golden.clauses import PROHIBITED_CASES
 
     covered = {c.rule_id for c in PROHIBITED_CASES}
     assert covered == {r.rule_id for r in PROHIBITED_RULES if rule_active(r, AS_AT)}
-    mandatory_covered = {c.rule_id for c in MANDATORY_CASES}
-    assert mandatory_covered == {r.rule_id for r in MANDATORY_RULES if rule_active(r, AS_AT)}
-    for case in PROHIBITED_CASES + MANDATORY_CASES:
+    for case in PROHIBITED_CASES:
         assert case.expected in ("red", "green")
 
 

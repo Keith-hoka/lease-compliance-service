@@ -8,12 +8,7 @@ from app.clause_audit import rules as clause_rules
 from app.clause_audit.document import DocumentInput
 from app.clause_audit.verify import parse_amount, parse_date, parse_frequency, quote_matches
 from app.llm.client import JudgeFn
-from app.llm.prompts import (
-    MANDATORY_GUIDANCE,
-    PROHIBITED_GUIDANCE,
-    clause_instruction,
-    fields_instruction,
-)
+from app.llm.prompts import PROHIBITED_GUIDANCE, clause_instruction, fields_instruction
 from app.llm.schemas import FieldsOutput, family_output_model
 from app.rules.base import Citation
 from app.schemas.clause_audit import ClauseFinding, ClauseLeaseInput, Discrepancy
@@ -120,26 +115,6 @@ async def run_prohibited(
         "ProhibitedOutput",
         quote_verdict="red",
         verdict_guidance=PROHIBITED_GUIDANCE,
-    )
-
-
-async def run_mandatory(
-    judge: JudgeFn,
-    session: AsyncSession,
-    doc: DocumentInput,
-    as_at: date,
-    rules: list[clause_rules.ClauseRule],
-) -> list[ClauseFinding]:
-    return await _run_clause_family(
-        judge,
-        session,
-        doc,
-        as_at,
-        rules,
-        "mandatory terms",
-        "MandatoryOutput",
-        quote_verdict="green",
-        verdict_guidance=MANDATORY_GUIDANCE,
     )
 
 

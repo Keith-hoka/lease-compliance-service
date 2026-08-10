@@ -5,10 +5,6 @@ expected verdict is case.expected and every other rule's expected verdict is
 green — each case doubles as a hard negative for the other seven rules.
 yellow on a red case is a recall miss; red on a green case is a precision
 hit against the judging rule.
-
-Mandatory family: one complete lease (every mandatory term present, all
-rules expected green) plus one variant per rule omitting exactly that
-rule's clause — the same cross-scoring then holds.
 """
 
 from dataclasses import dataclass, field
@@ -328,56 +324,6 @@ PROHIBITED_CASES = [
         "for the premises in the tenant's own name.",
         "green",
     ),
-]
-
-_MANDATORY_CLAUSES = {
-    "nsw.clause.states_rent_payment": (
-        "The rent is $560 per week, payable weekly in advance by bank transfer."
-    ),
-    "nsw.clause.quiet_enjoyment_term": (
-        "The landlord agrees that the tenant will have quiet enjoyment of the "
-        "premises without interference by the landlord or the landlord's agent."
-    ),
-    "nsw.clause.tenant_use_term": (
-        "The tenant must not use the premises for an illegal purpose, cause a "
-        "nuisance, or interfere with the peace, comfort or privacy of "
-        "neighbours."
-    ),
-    "nsw.clause.habitability_term": (
-        "The landlord will provide the premises in a reasonably clean condition, "
-        "fit for habitation."
-    ),
-    "nsw.clause.repairs_term": (
-        "The landlord will provide and maintain the premises in a reasonable state of repair."
-    ),
-    "nsw.clause.locks_security_term": (
-        "The landlord will provide and maintain locks and other security "
-        "devices to keep the premises reasonably secure."
-    ),
-}
-
-
-def _mandatory_lease(omit: str | None = None) -> str:
-    clauses = [c for rid, c in _MANDATORY_CLAUSES.items() if rid != omit]
-    return _PREAMBLE + " ".join(clauses) + " Keys must be returned at the end of the tenancy."
-
-
-MANDATORY_CASES = [
-    ClauseCase(
-        "mandatory-complete",
-        "nsw.clause.states_rent_payment",
-        _mandatory_lease(),
-        "green",
-    ),
-    *[
-        ClauseCase(
-            f"mandatory-missing-{rid.rsplit('.', 1)[1]}",
-            rid,
-            _mandatory_lease(omit=rid),
-            "red",
-        )
-        for rid in _MANDATORY_CLAUSES
-    ],
 ]
 
 FIELD_CASES = [

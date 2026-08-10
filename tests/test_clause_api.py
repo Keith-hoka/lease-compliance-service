@@ -202,7 +202,6 @@ async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeyp
         question="A term requiring professional carpet cleaning.",
     )
     monkeypatch.setattr(rules_module, "PROHIBITED_RULES", [rule])
-    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [])
     fake_judge.responses["ProhibitedOutput"] = {
         "items": [
             {

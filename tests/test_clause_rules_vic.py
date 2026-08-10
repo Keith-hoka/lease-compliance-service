@@ -51,9 +51,9 @@ def test_vic_rules_inactive_before_commencement():
 
 
 def test_nsw_rules_carry_their_jurisdiction():
-    from app.clause_audit.rules import MANDATORY_RULES, PROHIBITED_RULES
+    from app.clause_audit.rules import PROHIBITED_RULES
 
-    assert all(r.jurisdiction == "NSW" for r in PROHIBITED_RULES + MANDATORY_RULES)
+    assert all(r.jurisdiction == "NSW" for r in PROHIBITED_RULES)
 
 
 async def test_every_vic_rule_resolves_on_the_corpus(corpus_session):

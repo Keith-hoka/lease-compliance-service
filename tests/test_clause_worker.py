@@ -30,7 +30,6 @@ RULE = ClauseRule(
 @pytest.fixture(autouse=True)
 def single_rule(monkeypatch):
     monkeypatch.setattr(rules_module, "PROHIBITED_RULES", [RULE])
-    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [])
 
 
 @pytest.fixture

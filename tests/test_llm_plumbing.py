@@ -6,8 +6,8 @@ from pydantic import ValidationError
 from app.clause_audit.document import DocumentInput
 from app.llm.client import build_parse_kwargs, document_block
 from app.llm.prompts import (
-    MANDATORY_GUIDANCE,
     PROHIBITED_GUIDANCE,
+    STANDARD_FORM_GUIDANCE,
     SYSTEM,
     clause_instruction,
     fields_instruction,
@@ -92,9 +92,9 @@ def test_clause_instruction_embeds_statute_rules_and_guidance():
 
 
 def test_family_guidance_defines_verdicts_distinctly():
-    assert "absent" in MANDATORY_GUIDANCE
-    assert "independently" in MANDATORY_GUIDANCE
     assert "offending text" in PROHIBITED_GUIDANCE
+    assert "altered_adverse" in STANDARD_FORM_GUIDANCE
+    assert PROHIBITED_GUIDANCE != STANDARD_FORM_GUIDANCE
 
 
 def test_fields_instruction_lists_every_field():

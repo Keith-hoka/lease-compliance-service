@@ -23,11 +23,6 @@ first appear in the 2025-05-19 version; the other paragraphs are original
 the specified-person effect and the specific-utility-provider effect; the
 current cl 5 (from 2025-05-19) keeps only the utility-provider term, "unless
 the landlord must use a specific utility provider for the premises".
-
-Mandatory terms. The Act states 37 sections as "a term of every residential
-tenancy agreement"; the six below are the crisply decidable, universally
-present ones (all in force at commencement). The remainder are excluded and
-recorded in docs/rule-candidates.md.
 """
 
 from dataclasses import dataclass
@@ -50,7 +45,7 @@ REG_COMMENCED = date(2019, 12, 16)
 class ClauseRule:
     rule_id: str
     jurisdiction: Literal["NSW", "VIC"]
-    family: Literal["prohibited", "mandatory"]
+    family: Literal["prohibited"]
     ref: SectionRef
     applies_from: date | None
     applies_to: date | None
@@ -181,84 +176,6 @@ PROHIBITED_RULES = [
             "A term requiring the tenant to use a specific utility provider "
             "(Regulation cl 5). Not breached where the landlord is required to "
             "use a specific utility provider for the premises."
-        ),
-    ),
-]
-
-MANDATORY_RULES = [
-    ClauseRule(
-        rule_id="nsw.clause.states_rent_payment",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "33"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term about payment of rent by the "
-            "tenant: the rent payable and when or how it is to be paid (s 33)."
-        ),
-    ),
-    ClauseRule(
-        rule_id="nsw.clause.quiet_enjoyment_term",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "50"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term giving the tenant quiet "
-            "enjoyment of the premises without interference by the landlord "
-            "(s 50)."
-        ),
-    ),
-    ClauseRule(
-        rule_id="nsw.clause.tenant_use_term",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "51"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term about the tenant's use of the "
-            "premises: not for illegal purposes, no nuisance and no "
-            "interference with neighbours (s 51)."
-        ),
-    ),
-    ClauseRule(
-        rule_id="nsw.clause.habitability_term",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "52"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term that the landlord provides the "
-            "premises reasonably clean and fit for habitation (s 52)."
-        ),
-    ),
-    ClauseRule(
-        rule_id="nsw.clause.repairs_term",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "63"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term that the landlord will provide "
-            "and maintain the premises in a reasonable state of repair (s 63)."
-        ),
-    ),
-    ClauseRule(
-        rule_id="nsw.clause.locks_security_term",
-        jurisdiction="NSW",
-        family="mandatory",
-        ref=SectionRef("act-2010-042", "70"),
-        applies_from=COMMENCED,
-        applies_to=None,
-        question=(
-            "The agreement must contain a term that the landlord provides and "
-            "maintains locks or other security devices to keep the premises "
-            "reasonably secure (s 70)."
         ),
     ),
 ]

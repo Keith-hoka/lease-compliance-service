@@ -13,14 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.clause_audit.document import DocumentInput, document_input
-from app.clause_audit.families import run_fields, run_mandatory, run_prohibited
-from app.clause_audit.rules import MANDATORY_RULES, PROHIBITED_RULES
+from app.clause_audit.families import run_fields, run_prohibited
+from app.clause_audit.rules import PROHIBITED_RULES
 from app.core.config import settings
 from app.llm.client import make_judge
 from app.models import Act
 from app.schemas.clause_audit import ClauseLeaseInput
 from tests.fixtures.pdfs import make_scanned_pdf, make_text_pdf
-from tests.golden.clauses import FIELD_CASES, MANDATORY_CASES, PROHIBITED_CASES, THRESHOLDS
+from tests.golden.clauses import FIELD_CASES, PROHIBITED_CASES, THRESHOLDS
 
 pytestmark = pytest.mark.llm_eval
 
@@ -108,11 +108,6 @@ async def test_vic_prohibited_golden(eval_session):
     stats = await _score_family(
         eval_session, run_prohibited, VIC_PROHIBITED_RULES, VIC_PROHIBITED_CASES
     )
-    _assert_thresholds(stats)
-
-
-async def test_mandatory_golden(eval_session):
-    stats = await _score_family(eval_session, run_mandatory, MANDATORY_RULES, MANDATORY_CASES)
     _assert_thresholds(stats)
 
 

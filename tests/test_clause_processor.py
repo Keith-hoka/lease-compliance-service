@@ -27,7 +27,6 @@ RULE = ClauseRule(
 @pytest.fixture(autouse=True)
 def single_rule(monkeypatch):
     monkeypatch.setattr(rules_module, "PROHIBITED_RULES", [RULE])
-    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [])
 
 
 @pytest.fixture
@@ -141,7 +140,6 @@ async def test_vic_job_runs_prohibited_and_fields_only(db_session, seeded_s27b, 
     from app.clause_audit import rules_vic
 
     monkeypatch.setattr(rules_vic, "VIC_PROHIBITED_RULES", [VIC_RULE])
-    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [RULE])
     called = []
 
     async def judge(doc, instruction, output_model):
@@ -176,55 +174,66 @@ async def test_vic_job_runs_prohibited_and_fields_only(db_session, seeded_s27b, 
     assert called == ["ProhibitedOutput", "FieldsOutput"]
 
 
-MANDATORY_RULE = ClauseRule(
-    rule_id="nsw.clause.mandatory_probe",
-    jurisdiction="NSW",
-    family="mandatory",
-    ref=SectionRef("act-2010-042", "19"),
-    applies_from=date(2011, 1, 31),
-    applies_to=None,
-    question="The agreement must state how rent is to be paid.",
-)
-
-
-async def test_nsw_job_runs_all_three_families(db_session, seeded_s19, monkeypatch):
-    monkeypatch.setattr(rules_module, "MANDATORY_RULES", [MANDATORY_RULE])
-    called = []
-
-    async def judge(doc, instruction, output_model):
-        called.append(output_model.__name__)
-        if output_model.__name__ == "FieldsOutput":
-            return output_model(fields=[])
-        if output_model.__name__ == "MandatoryOutput":
-            return output_model(
-                items=[
-                    {
-                        "rule_id": "nsw.clause.mandatory_probe",
-                        "verdict": "green",
-                        "reasoning": "term present",
-                        "clause_quote": CARPET,
-                    }
-                ]
-            )
-        return output_model(
-            items=[
-                {
-                    "rule_id": "nsw.clause.carpet_cleaning",
-                    "verdict": "red",
-                    "reasoning": "found",
-                    "clause_quote": CARPET,
-                }
-            ]
-        )
-
-    job = _job(lease={"rent_amount": "560"})
-    db_session.add(job)
+@pytest.fixture
+async def seeded_sf_nsw_term(db_session):
+    """One short NSW standard-form term - short body means it always lands in residual."""
+    act = Act(
+        jurisdiction="NSW",
+        slug="sl-2019-0629",
+        title="Residential Tenancies Regulation 2019",
+        source_url="x",
+    )
+    db_session.add(act)
     await db_session.flush()
+    await load_version(
+        db_session,
+        act.id,
+        date(2019, 12, 16),
+        [ParsedSection("S1-T1", "RENT", "Pay the rent on time.", "Schedule 1", None)],
+    )
+    await db_session.commit()
 
-    await process_job(db_session, job, judge)
 
-    assert called == ["ProhibitedOutput", "MandatoryOutput", "FieldsOutput"]
-    assert [f["rule_id"] for f in job.findings] == [
-        "nsw.clause.carpet_cleaning",
-        "nsw.clause.mandatory_probe",
-    ]
+@pytest.fixture
+async def seeded_sf_vic_term(db_session):
+    """One short VIC Form 1 standard-form term, same shape as seeded_sf_nsw_term."""
+    act = Act(
+        jurisdiction="VIC",
+        slug="residential-tenancies-regulations-2021",
+        title="Residential Tenancies Regulations 2021",
+        source_url="x",
+    )
+    db_session.add(act)
+    await db_session.flush()
+    await load_version(
+        db_session,
+        act.id,
+        date(2021, 3, 29),
+        [ParsedSection("S1-F1-T1", "RENT", "Pay the rent on time.", "Schedule 1", None)],
+    )
+    await db_session.commit()
+
+
+async def test_process_job_runs_standard_form_both_jurisdictions(
+    fake_judge, db_session, seeded_sf_nsw_term, seeded_sf_vic_term, monkeypatch
+):
+    from app.clause_audit import rules_vic
+
+    monkeypatch.setattr(rules_module, "PROHIBITED_RULES", [])
+    monkeypatch.setattr(rules_vic, "VIC_PROHIBITED_RULES", [])
+    fake_judge.responses["StandardFormOutput1"] = {"items": []}
+
+    nsw_job = _job()
+    db_session.add(nsw_job)
+    await db_session.commit()
+    await process_job(db_session, nsw_job, fake_judge)
+    nsw_ids = {f["rule_id"] for f in nsw_job.findings}
+    assert any(r.startswith("nsw.clause.sf_t") for r in nsw_ids)
+    assert "nsw.clause.states_rent_payment" not in nsw_ids
+
+    vic_job = _job(jurisdiction="VIC")
+    db_session.add(vic_job)
+    await db_session.commit()
+    await process_job(db_session, vic_job, fake_judge)
+    vic_ids = {f["rule_id"] for f in vic_job.findings}
+    assert any(r.startswith("vic.clause.sf_f1_t") for r in vic_ids)

@@ -34,10 +34,13 @@ keeps this survey re-checkable at any time.
 ## Mandatory-content survey (LLM clause audit, 2026-07-28)
 
 The Act states 37 sections as "a term of every residential tenancy
-agreement". Six crisply decidable, universally present ones became
-`MANDATORY_RULES` (ss 33, 50, 51, 52, 63, 70). The rest are excluded from
-v1 because presence in a lease document is situational or procedural
-rather than a universal content term:
+agreement". Six crisply decidable, universally present ones (ss 33, 50,
+51, 52, 63, 70) originally shipped as `MANDATORY_RULES`; as of 2026-08-10
+that family is retired, and these six now surface as dual-cited findings
+(prescribed standard-form term plus Act duty section) inside the
+standard-form comparison family instead. The rest are excluded from v1
+because presence in a lease document is situational or procedural rather
+than a universal content term:
 
 - ss 27, 34, 35, 38-40, 43, 48: money/utility mechanics often expressed
   outside a dedicated clause (rent receipts, charge splits, rent

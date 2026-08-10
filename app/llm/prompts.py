@@ -30,15 +30,6 @@ PROHIBITED_GUIDANCE = (
     "from the document."
 )
 
-MANDATORY_GUIDANCE = (
-    "verdict red means the required term is absent from the document, green "
-    "means the document contains a term to that specific effect, yellow means "
-    "you cannot tell. Judge each required term independently: a related but "
-    "different clause (for example a repairs clause) does not satisfy a "
-    "different required term (for example habitability). For green verdicts, "
-    "clause_quote must be the verbatim term you found."
-)
-
 STANDARD_FORM_GUIDANCE = (
     "For each prescribed term, outcome covered means the document contains a "
     "term to that specific effect (quote it verbatim in lease_quote); missing "
