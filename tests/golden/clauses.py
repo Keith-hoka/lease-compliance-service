@@ -50,8 +50,8 @@ PROHIBITED_CASES = [
         "carpet-red-paraphrase",
         "nsw.clause.carpet_cleaning",
         _PREAMBLE + "Upon vacating, the floor coverings are to be cleaned by an accredited "
-        "professional cleaning company engaged and paid for by the tenant, "
-        "receipts to be produced on request.",
+        "professional cleaning company of the tenant's choosing, engaged and paid for "
+        "by the tenant, receipts to be produced on request.",
         "red",
     ),
     ClauseCase(
@@ -103,8 +103,9 @@ PROHIBITED_CASES = [
     ClauseCase(
         "fumigation-red-paraphrase",
         "nsw.clause.fumigation",
-        _PREAMBLE + "The tenant shall engage a licensed pest control operator to fumigate "
-        "the property at the end of the tenancy and bear the expense of doing so.",
+        _PREAMBLE + "The tenant shall engage a licensed pest control operator of the "
+        "tenant's choice to fumigate the property at the end of the tenancy and bear "
+        "the expense of doing so.",
         "red",
     ),
     ClauseCase(

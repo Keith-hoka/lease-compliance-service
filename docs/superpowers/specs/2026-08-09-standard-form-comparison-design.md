@@ -121,7 +121,13 @@ Goldens are corpus-driven and generated, not hand-written per document:
 Gates: per rule_id P >= 0.9 / R >= 0.8 over its own case set - small n
 per term makes the gate coarse but loud (one missed recall case out of
 two reads 0.5 and names the term). The eval report emits a per-term hit
-table. A full run is ~60 documents and an estimated 200-300 LLM calls
+table. Addendum (owner decisions 2026-08-11): both prohibited families
+(VIC and NSW) gate on pooled family-level P/R instead, per-rule table
+retained - seven VIC runs rotated five distinct single-rule failure
+combinations and NSW showed the same shape (a single-run FP that a full
+rescan could not reproduce); per-rule gates cannot converge at those
+families' 3-9-case denominators. Standard-form families keep per-term
+gates (n=6, stable). A full run is ~60 documents and an estimated 200-300 LLM calls
 (the screen zeroes the untouched terms); screen calibration cases are
 also exact-assert pytest (verbatim screens green, altered screens out)
 so CI exercises the deterministic layer free, and LLM evals keep the

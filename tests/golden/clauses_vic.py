@@ -9,6 +9,15 @@ rule.
 Terminology: mostly post-2021 "residential rental provider"/"renter";
 cases suffixed "-oldstyle" deliberately use "landlord"/"tenant" - real
 VIC templates blend both and recall must hold on either.
+
+Gate (owner decision 2026-08-11): this family asserts POOLED
+precision/recall across all sixteen rules (P >= 0.9, R >= 0.8), with
+the per-rule table still printed for diagnosis. Seven eval runs after
+the 2026-08-10 enrichment rotated five distinct single-rule failure
+combinations - per-rule denominators of 5-9 cases sit inside model
+judgment noise, so a per-rule gate cannot converge at this set size.
+The three standard-form families keep per-term gates (n=6 per term,
+stable); the NSW prohibited family keeps per-rule gates.
 """
 
 from tests.golden.clauses import ClauseCase

@@ -80,6 +80,32 @@ def _assert_thresholds(stats: dict, thresholds: dict = THRESHOLDS) -> None:
     assert not failures, "; ".join(failures)
 
 
+def _assert_family_thresholds(stats: dict, min_p: float = 0.9, min_r: float = 0.8) -> None:
+    """Owner decisions 2026-08-11: both prohibited families gate on pooled
+    precision/recall across their rules, with the per-rule table retained
+    for diagnosis. Evidence: VIC runs 16-22 rotated five distinct
+    single-rule failure combinations, and NSW showed the same shape
+    (utility_provider single-run FP, zero on full rescan) - per-rule
+    denominators of 3-9 cases sit inside model judgment noise. The three
+    standard-form families keep per-term gates (n=6, stable)."""
+    print(f"\n{'rule':45} {'P':>6} {'R':>6} {'yellow':>7}")
+    pooled = {"tp": 0, "fp": 0, "miss": 0}
+    for rule_id, counts in sorted(stats.items()):
+        tp, fp, misses, yellows = counts["tp"], counts["fp"], counts["miss"], counts["yellow"]
+        precision = tp / (tp + fp) if tp + fp else 1.0
+        recall = tp / (tp + misses) if tp + misses else 1.0
+        print(f"{rule_id:45} {precision:6.2f} {recall:6.2f} {yellows:7d}")
+        for key in pooled:
+            pooled[key] += counts[key]
+    family_p = pooled["tp"] / (pooled["tp"] + pooled["fp"]) if pooled["tp"] + pooled["fp"] else 1.0
+    family_r = (
+        pooled["tp"] / (pooled["tp"] + pooled["miss"]) if pooled["tp"] + pooled["miss"] else 1.0
+    )
+    print(f"{'FAMILY (pooled)':45} {family_p:6.2f} {family_r:6.2f}")
+    assert family_p >= min_p, f"family precision {family_p:.2f} < {min_p}"
+    assert family_r >= min_r, f"family recall {family_r:.2f} < {min_r}"
+
+
 async def _score_family(session, runner, rules, cases):
     judge = make_judge()
     rule_ids = {r.rule_id for r in rules}
@@ -109,7 +135,7 @@ async def _score_family(session, runner, rules, cases):
 
 async def test_prohibited_golden(eval_session):
     stats = await _score_family(eval_session, run_prohibited, PROHIBITED_RULES, PROHIBITED_CASES)
-    _assert_thresholds(stats)
+    _assert_family_thresholds(stats)
 
 
 async def test_vic_prohibited_golden(eval_session):
@@ -119,7 +145,7 @@ async def test_vic_prohibited_golden(eval_session):
     stats = await _score_family(
         eval_session, run_prohibited, VIC_PROHIBITED_RULES, VIC_PROHIBITED_CASES
     )
-    _assert_thresholds(stats)
+    _assert_family_thresholds(stats)
 
 
 async def _run_standard_form_resilient(judge, session, doc, jurisdiction, lease, doc_id):
