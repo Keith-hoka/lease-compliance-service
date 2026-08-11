@@ -4,27 +4,38 @@ Needs the dev corpus store and settings.anthropic_api_key. Every test prints
 a per-rule precision/recall table; thresholds come from THRESHOLDS.
 """
 
+import tempfile
+import time
 from collections import defaultdict
 from datetime import date
+from pathlib import Path
 
 import asyncpg
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.clause_audit.document import DocumentInput, document_input
 from app.clause_audit.families import run_fields, run_prohibited
 from app.clause_audit.rules import PROHIBITED_RULES
+from app.clause_audit.standard_form import fetch_form_terms, run_standard_form
 from app.core.config import settings
-from app.llm.client import make_judge
+from app.llm.client import JudgeError, make_judge
 from app.models import Act
 from app.schemas.clause_audit import ClauseLeaseInput
 from tests.fixtures.pdfs import make_scanned_pdf, make_text_pdf
 from tests.golden.clauses import FIELD_CASES, PROHIBITED_CASES, THRESHOLDS
+from tests.golden.standard_form import SF_THRESHOLDS, plan_documents
 
 pytestmark = pytest.mark.llm_eval
 
 AS_AT = date(2026, 7, 28)
+AS_AT_SF = date(2026, 8, 9)
+SF_DEFAULT_THRESHOLDS = {"default": (SF_THRESHOLDS["precision"], SF_THRESHOLDS["recall"])}
+
+_FAILURE_DUMP_DIR = Path(tempfile.gettempdir()) / "lease-compliance-eval-failures"
+_INFRA_RETRIES = 2
 
 
 @pytest.fixture
@@ -53,14 +64,14 @@ async def eval_session():
     await engine.dispose()
 
 
-def _assert_thresholds(stats: dict) -> None:
+def _assert_thresholds(stats: dict, thresholds: dict = THRESHOLDS) -> None:
     failures = []
     print(f"\n{'rule':45} {'P':>6} {'R':>6} {'yellow':>7}")
     for rule_id, counts in sorted(stats.items()):
         tp, fp, misses, yellows = counts["tp"], counts["fp"], counts["miss"], counts["yellow"]
         precision = tp / (tp + fp) if tp + fp else 1.0
         recall = tp / (tp + misses) if tp + misses else 1.0
-        min_p, min_r = THRESHOLDS.get(rule_id, THRESHOLDS["default"])
+        min_p, min_r = thresholds.get(rule_id, thresholds["default"])
         print(f"{rule_id:45} {precision:6.2f} {recall:6.2f} {yellows:7d}")
         if precision < min_p:
             failures.append(f"{rule_id} precision {precision:.2f} < {min_p}")
@@ -109,6 +120,87 @@ async def test_vic_prohibited_golden(eval_session):
         eval_session, run_prohibited, VIC_PROHIBITED_RULES, VIC_PROHIBITED_CASES
     )
     _assert_thresholds(stats)
+
+
+async def _run_standard_form_resilient(judge, session, doc, jurisdiction, lease, doc_id):
+    """run_standard_form with up to _INFRA_RETRIES retries on infrastructure failure.
+
+    Retries only JudgeError (the judge declined, or the SDK's own structured-
+    output parse returned nothing) and pydantic ValidationError (a parse
+    failure raised from inside the Anthropic SDK's parse path itself, which
+    does not retry on its own - see the task report: on that path the SDK
+    discards the raw response's usage and stop_reason before the exception
+    reaches this code, so a call that keeps failing is dumped here for later
+    inspection rather than silently lost). Scoring is untouched either way -
+    a retried document's verdicts count exactly as a first-try success
+    would; only genuine infrastructure failures are retried, never a
+    verdict/content disagreement (those are not exceptions at all).
+    """
+    last_exc: JudgeError | ValidationError | None = None
+    for _attempt in range(_INFRA_RETRIES + 1):
+        try:
+            return await run_standard_form(judge, session, doc, AS_AT_SF, jurisdiction, lease)
+        except (JudgeError, ValidationError) as exc:
+            last_exc = exc
+    _FAILURE_DUMP_DIR.mkdir(parents=True, exist_ok=True)
+    dump_path = _FAILURE_DUMP_DIR / f"{doc_id}-{int(time.time())}.txt"
+    detail = last_exc.errors() if isinstance(last_exc, ValidationError) else str(last_exc)
+    dump_path.write_text(f"doc_id={doc_id}\n{type(last_exc).__name__}\n{detail}\n")
+    pytest.fail(
+        f"run_standard_form failed {_INFRA_RETRIES + 1}x for doc {doc_id}: "
+        f"{type(last_exc).__name__}. Dumped to {dump_path}"
+    )
+
+
+async def _score_standard_form(session, judge, jurisdiction, lease, docs):
+    stats: dict[str, dict] = defaultdict(lambda: {"tp": 0, "fp": 0, "miss": 0, "yellow": 0})
+    for doc in docs:
+        findings = await _run_standard_form_resilient(
+            judge,
+            session,
+            DocumentInput(kind="text", text=doc.text),
+            jurisdiction,
+            lease,
+            doc.doc_id,
+        )
+        by_id = {f.rule_id: f for f in findings}
+        for rule_id, expected in doc.expected.items():
+            finding = by_id.get(rule_id)
+            verdict = finding.verdict if finding is not None else "yellow"
+            counts = stats[rule_id]
+            if verdict == "yellow":
+                counts["yellow"] += 1
+                if expected == "red":
+                    counts["miss"] += 1
+            elif verdict == "red" and expected == "red":
+                counts["tp"] += 1
+            elif verdict == "red" and expected == "green":
+                counts["fp"] += 1
+            elif verdict == "green" and expected == "red":
+                counts["miss"] += 1
+    return stats
+
+
+async def test_standard_form_eval_nsw(eval_session):
+    terms, _ = await fetch_form_terms(eval_session, "NSW", AS_AT_SF, None)
+    docs = plan_documents(terms)
+    stats = await _score_standard_form(eval_session, make_judge(), "NSW", None, docs)
+    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
+
+
+async def test_standard_form_eval_vic_f1(eval_session):
+    terms, _ = await fetch_form_terms(eval_session, "VIC", AS_AT_SF, None)
+    docs = plan_documents(terms)
+    stats = await _score_standard_form(eval_session, make_judge(), "VIC", None, docs)
+    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
+
+
+async def test_standard_form_eval_vic_f2(eval_session):
+    lease = ClauseLeaseInput(start_date=date(2020, 1, 1), end_date=date(2026, 1, 2))
+    terms, _ = await fetch_form_terms(eval_session, "VIC", AS_AT_SF, lease)
+    docs = plan_documents(terms)
+    stats = await _score_standard_form(eval_session, make_judge(), "VIC", lease, docs)
+    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
 
 
 async def test_fields_golden(eval_session):

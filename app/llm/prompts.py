@@ -39,7 +39,14 @@ STANDARD_FORM_GUIDANCE = (
     "and state the departure in departure); uncertain means you cannot tell - "
     "prefer uncertain over guessing. Judge substance, not wording: a "
     "faithful paraphrase is covered. A related but different clause does not "
-    "cover a different term."
+    "cover a different term. Keep reasoning to one or two sentences and "
+    "departure to one sentence: you are judging up to eight terms in this "
+    "call and the response must fit the output budget. lease_quote must be a "
+    "short, distinctive excerpt of the relied-on text - at most about 25 "
+    "words - never the full clause, even when the prescribed term is long. "
+    "lease_quote must be verbatim contiguous text copied from the document: "
+    "pick one short unbroken run of words, never an ellipsis or any other "
+    "join of separate fragments."
 )
 
 
@@ -62,6 +69,46 @@ def clause_instruction(
     return "\n\n".join(parts)
 
 
+# Below this many whitespace-split tokens a prescribed body carries no usable
+# prose at all (fewer tokens than one 8-token shingle) - the VIC table-content
+# limitation (e.g. Form 1 term 6 "Rent"), not merely a short clause. Deliberately
+# stricter than MIN_SCREEN_TOKENS=12 (the screen's own always-residual gate,
+# duplicated here only in spirit - importing it would cycle back through
+# app.clause_audit.standard_form, which imports this module): an 8-11 token
+# clause like "Repairs" (S1-F1-T24) still has one real sentence and needs no
+# special framing, only genuinely empty-or-near-empty bodies do.
+_TABLE_CONTENT_TOKENS = 8
+
+
+def _term_context(term: "FormTerm") -> str:
+    """One judge-instruction line for a prescribed term.
+
+    A term whose body is empty or near-empty is a table or form field in the
+    real prescribed form (extracting table cells is a known corpus gap, not
+    something this instruction can recover); telling the judge only the
+    heading, with no further guidance, leaves it nothing to compare against
+    and it defaults to guessing red (confirmed empirically: VIC F1 term 6
+    "Rent" scored 0.21 precision - almost every document drew a red verdict
+    regardless of whether the term was actually present, missing or altered).
+    Naming the gap explicitly, plus the ordinary Australian tenancy meaning
+    of the heading, gives it something concrete to judge instead.
+    """
+    if len(term.body.split()) >= _TABLE_CONTENT_TOKENS:
+        return f"- {term.rule_id} ({term.section_no} {term.heading}):\n{term.body}"
+    note = (
+        f"- {term.rule_id} ({term.section_no} {term.heading}): The prescribed text for "
+        "this term is a table or form field in the standard form, not prose, and is not "
+        "reproduced here. Judge coverage and adverse alteration against the ordinary "
+        "meaning of a term titled ‘" + term.heading + "’ in an Australian "
+        "residential tenancy agreement; if the document is silent on it, or plainly "
+        "departs from the usual content for a term of this kind, treat it as missing or "
+        "altered_adverse rather than guessing it is covered."
+    )
+    if term.act_duty:
+        note += f" This term corresponds to Act section {term.act_duty}."
+    return note
+
+
 def standard_form_instruction(as_at: date, terms: "list[FormTerm]") -> str:
     """Render one judge instruction for a batch of prescribed terms in force at as_at."""
     header = (
@@ -69,9 +116,7 @@ def standard_form_instruction(as_at: date, terms: "list[FormTerm]") -> str:
         f"each prescribed term of the standard form in force at {as_at.isoformat()}. "
         f"Return exactly one item per rule_id. {STANDARD_FORM_GUIDANCE}"
     )
-    parts = [header]
-    for term in terms:
-        parts.append(f"- {term.rule_id} ({term.section_no} {term.heading}):\n{term.body}")
+    parts = [header] + [_term_context(term) for term in terms]
     return "\n\n".join(parts)
 
 

@@ -1,6 +1,7 @@
 """Deterministic layer of the standard-form comparison: no DB, no LLM."""
 
 import uuid
+from dataclasses import replace
 from datetime import date
 
 import asyncpg
@@ -25,6 +26,7 @@ from app.llm.prompts import STANDARD_FORM_GUIDANCE, standard_form_instruction
 from app.llm.schemas import standard_form_output_model
 from app.models import Act
 from app.schemas.clause_audit import ClauseLeaseInput
+from tests.golden.standard_form import ALTERATIONS, build_altered, build_verbatim, render_term
 
 
 def make_term(no: str, heading: str, body: str) -> FormTerm:
@@ -187,6 +189,32 @@ def test_standard_form_instruction_contains_terms_and_rubric():
     assert "nsw.clause.sf_t1" in instruction and "nsw.clause.sf_t2" in instruction
     assert "covered" in instruction and "altered_adverse" in instruction
     assert STANDARD_FORM_GUIDANCE in instruction
+
+
+def test_standard_form_instruction_frames_empty_body_terms_as_table_content():
+    """Terms whose prescribed body is empty or near-empty (the VIC table
+    limitation, e.g. Form 1 term 6 "Rent") get a heading-driven note instead
+    of a blank/near-blank body, so the judge has something to compare
+    against rather than defaulting to a guess."""
+    empty = make_term("6", "Rent", "")
+    normal = make_term(
+        "24",
+        "Repairs",
+        "Only a suitably qualified person may do repairs, both urgent and non-urgent.",
+    )
+    instruction = standard_form_instruction(date(2026, 8, 9), [empty, normal])
+    assert "table or form field" in instruction
+    assert "Rent" in instruction and "S1-T6" in instruction
+    assert "Only a suitably qualified person may do repairs" in instruction
+    # the normal-length term's actual body is quoted verbatim, not reframed
+    assert instruction.count("table or form field") == 1
+
+
+def test_standard_form_instruction_notes_act_duty_for_empty_body_terms():
+    term = make_term("6", "Rent", "")
+    term = replace(term, act_duty="33")
+    instruction = standard_form_instruction(date(2026, 8, 9), [term])
+    assert "Act section 33" in instruction
 
 
 def test_standard_form_output_model_validates_outcomes():
@@ -352,3 +380,71 @@ async def test_runner_pdf_document_skips_screen(corpus_session):
     findings = await run_standard_form(judge, corpus_session, doc, date(2026, 8, 9), "VIC", None)
     assert all(f.verdict in {"green", "yellow"} for f in findings)
     assert not any(f.evidence.get("method") == "verbatim" for f in findings)
+
+
+def _screenable(terms) -> set[str]:
+    """Terms the verbatim baseline is expected to screen green.
+
+    Both length gates mirror screen_terms' own MIN_SCREEN_TOKENS check. A
+    third gate excludes terms whose OWN rendered form does not self-match at
+    CONTAINMENT_THRESHOLD: a handful of heavily [insert ...]-templated
+    fields (contact-detail and signature blocks, mostly VIC) fill to
+    realistic multi-word values at several points in a single term, and
+    normalize() strips the corresponding placeholder to nothing in the
+    prescribed text - no amount of realistic filling closes that gap, so
+    these terms genuinely fall to the LLM residual even when "verbatim".
+    """
+    return {
+        t.section_no
+        for t in terms
+        if len(normalize(f"{t.heading} {t.body}").split()) >= 12
+        and len(normalize(t.body).split()) >= 12
+        and containment(f"{t.heading} {t.body}", render_term(t)) >= CONTAINMENT_THRESHOLD
+    }
+
+
+async def test_verbatim_document_screens_all_screenable_terms_green(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "NSW", date(2026, 8, 9), None)
+    document = build_verbatim(terms)
+    green, _residual = screen_terms(terms, document)
+    assert {t.section_no for t, _ in green} == _screenable(terms)
+
+
+async def test_altered_terms_fall_out_of_the_screen(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "NSW", date(2026, 8, 9), None)
+    document = build_altered(terms, ALTERATIONS)
+    green, _residual = screen_terms(terms, document)
+    altered = {t.section_no for t in terms if t.rule_id in ALTERATIONS}
+    assert not ({t.section_no for t, _ in green} & altered)
+
+
+async def test_verbatim_document_screens_all_screenable_vic_f1_terms_green(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    document = build_verbatim(terms)
+    green, _residual = screen_terms(terms, document)
+    assert {t.section_no for t, _ in green} == _screenable(terms)
+
+
+async def test_altered_vic_f1_terms_fall_out_of_the_screen(corpus_session):
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), None)
+    document = build_altered(terms, ALTERATIONS)
+    green, _residual = screen_terms(terms, document)
+    altered = {t.section_no for t in terms if t.rule_id in ALTERATIONS}
+    assert not ({t.section_no for t, _ in green} & altered)
+
+
+async def test_verbatim_document_screens_all_screenable_vic_f2_terms_green(corpus_session):
+    lease = ClauseLeaseInput(start_date=date(2020, 1, 1), end_date=date(2026, 1, 2))
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), lease)
+    document = build_verbatim(terms)
+    green, _residual = screen_terms(terms, document)
+    assert {t.section_no for t, _ in green} == _screenable(terms)
+
+
+async def test_altered_vic_f2_terms_fall_out_of_the_screen(corpus_session):
+    lease = ClauseLeaseInput(start_date=date(2020, 1, 1), end_date=date(2026, 1, 2))
+    terms, _ = await fetch_form_terms(corpus_session, "VIC", date(2026, 8, 9), lease)
+    document = build_altered(terms, ALTERATIONS)
+    green, _residual = screen_terms(terms, document)
+    altered = {t.section_no for t in terms if t.rule_id in ALTERATIONS}
+    assert not ({t.section_no for t, _ in green} & altered)
