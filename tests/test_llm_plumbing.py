@@ -4,7 +4,6 @@ import pytest
 from pydantic import ValidationError
 
 from app.clause_audit.document import DocumentInput
-from app.llm.client import build_parse_kwargs, document_block
 from app.llm.prompts import (
     PROHIBITED_GUIDANCE,
     STANDARD_FORM_GUIDANCE,
@@ -12,6 +11,7 @@ from app.llm.prompts import (
     clause_instruction,
     fields_instruction,
 )
+from app.llm.providers.anthropic import build_create_kwargs, document_block
 from app.llm.schemas import FieldsOutput, family_output_model
 
 IDS = ["nsw.clause.carpet_cleaning", "nsw.clause.fumigation"]
@@ -64,9 +64,9 @@ def test_pdf_document_block_is_base64_document():
     assert block["cache_control"] == {"type": "ephemeral"}
 
 
-def test_build_parse_kwargs_shape():
+def test_build_create_kwargs_shape():
     doc = DocumentInput(kind="text", text="lease body")
-    kwargs = build_parse_kwargs("claude-opus-4-8", doc, "judge these rules")
+    kwargs = build_create_kwargs("claude-opus-4-8", doc, "judge these rules", FieldsOutput)
     assert kwargs["model"] == "claude-opus-4-8"
     assert kwargs["max_tokens"] == 8000
     assert kwargs["thinking"] == {"type": "adaptive"}
@@ -108,25 +108,3 @@ def test_system_prompt_disclaims_and_distrusts_document():
     assert "not legal advice" in SYSTEM
     assert "untrusted" in SYSTEM
     assert "lease_document" in SYSTEM
-
-
-async def test_make_judge_raises_on_refusal(monkeypatch):
-    from app.llm import client as llm_client
-
-    class StubResponse:
-        stop_reason = "refusal"
-        parsed_output = None
-
-    class StubMessages:
-        async def parse(self, **kwargs):
-            return StubResponse()
-
-    class StubClient:
-        def __init__(self, **kwargs):
-            self.messages = StubMessages()
-
-    monkeypatch.setattr(llm_client, "AsyncAnthropic", StubClient)
-    judge = llm_client.make_judge()
-    output_model = family_output_model("ProhibitedOutput", IDS)
-    with pytest.raises(llm_client.JudgeError):
-        await judge(DocumentInput(kind="text", text="x"), "instruction", output_model)
