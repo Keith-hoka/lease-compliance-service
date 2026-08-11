@@ -17,7 +17,7 @@
 - No emojis anywhere. Docstrings over comments. Short modules and functions. No defensive programming.
 - Screen: 8-token shingles, containment threshold 0.9, terms under 12 normalised tokens (or prescribed body under 12 tokens) always go to the LLM.
 - LLM batching: 8 residual terms per call. Model comes from `settings` as today (`CLAUSE_AUDIT_MODEL` env); do not hardcode a model id.
-- Eval gates: per rule_id precision >= 0.9 and recall >= 0.8. LLM evals carry `pytestmark = pytest.mark.llm_eval`.
+- Eval gates: per rule_id precision >= 0.9 and recall >= 0.8. LLM evals carry `pytestmark = pytest.mark.llm_eval`. (Amended by owner decisions 2026-08-11: the two prohibited families gate on pooled family-level P/R instead - see the spec's eval addendum; standard-form families keep per-term gates.)
 - Every finding carries citations with `as_at`; product copy stays general information, not legal advice.
 - rule_id shapes: `nsw.clause.sf_t{n}`, `vic.clause.sf_f1_t{n}`, `vic.clause.sf_f2_t{n}` - `{n}` is the term number lowercased (`sf_t30a`).
 - Corpus slugs: NSW Regulation `sl-2019-0629` (form terms `S1-T*`), VIC Regulations `residential-tenancies-regulations-2021` (form terms `S1-F1-T*` / `S1-F2-T*`).

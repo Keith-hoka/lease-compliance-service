@@ -448,3 +448,25 @@ async def test_altered_vic_f2_terms_fall_out_of_the_screen(corpus_session):
     green, _residual = screen_terms(terms, document)
     altered = {t.section_no for t in terms if t.rule_id in ALTERATIONS}
     assert not ({t.section_no for t, _ in green} & altered)
+
+
+async def test_matrix_passes_produce_distinct_partitions(corpus_session):
+    """The three missing-matrix passes must partition terms differently -
+    a rotation landing on a chunk boundary silently reproduces the same
+    documents (the pre-fix NSW schedule wasted ~44 percent of paid volume
+    on byte-identical repeats)."""
+    from tests.golden.standard_form import plan_documents
+
+    long_lease = ClauseLeaseInput(start_date=date(2020, 1, 1), end_date=date(2026, 1, 2))
+    for jurisdiction, lease in (("NSW", None), ("VIC", None), ("VIC", long_lease)):
+        terms, _ = await fetch_form_terms(corpus_session, jurisdiction, date(2026, 8, 9), lease)
+        docs = plan_documents(terms)
+        partitions = []
+        for pass_no in range(3):
+            chunks = frozenset(
+                frozenset(rid for rid, label in d.expected.items() if label == "red")
+                for d in docs
+                if d.doc_id.startswith(f"missing-{pass_no}-")
+            )
+            partitions.append(chunks)
+        assert len(set(partitions)) == 3, f"{jurisdiction}: matrix passes not distinct"

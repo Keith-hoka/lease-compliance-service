@@ -933,11 +933,13 @@ def _cluster_chunks(clusters: list[list], size: int, start: int) -> list[list]:
     """Clusters, rotated to start at cluster index `start`, packed greedily
     into chunks of at most `size` terms apiece; no cluster is split.
 
-    The rotation is a full permutation of `clusters`, so every term lands in
-    exactly one chunk per call - two calls with different `start` values put
-    every term through two different chunk neighbourhoods, one per pass.
+    Every term lands in exactly one chunk per call. Different `start`
+    values usually shift chunk neighbourhoods, but a rotation landing on
+    a chunk boundary reproduces the same partition - plan_documents picks
+    offsets off the thirds boundaries and a free-layer test asserts the
+    three passes genuinely differ.
     """
-    order = clusters[start:] + clusters[:start]
+    order = clusters[start % len(clusters) :] + clusters[: start % len(clusters)]
     chunks: list[list] = []
     current: list = []
     for cluster in order:
@@ -975,7 +977,7 @@ def plan_documents(terms: list) -> list[PlannedDocument]:
 
     clusters = _sibling_clusters(terms)
     c = len(clusters)
-    starts = (0, c // 3, 2 * c // 3)
+    starts = (0, c // 3 + 1, 2 * c // 3 + 1)
     for pass_no, start in enumerate(starts):
         for chunk_no, chunk_terms in enumerate(_cluster_chunks(clusters, _CHUNK_SIZE, start)):
             missing_ids = {t.rule_id for t in chunk_terms}

@@ -11,6 +11,12 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 THRESHOLDS: dict[str, tuple[float, float]] = {"default": (0.9, 0.8)}
+# Gate (owner decision 2026-08-11): this family asserts POOLED
+# precision/recall across all eight rules via _assert_family_thresholds,
+# with the per-rule table printed for diagnosis - a single-run
+# utility_provider false positive that a full rescan could not reproduce
+# showed per-rule gates cannot converge on 3-6-case denominators.
+# THRESHOLDS stays for the fields eval and as the per-rule reference.
 
 
 @dataclass(frozen=True)
@@ -150,7 +156,7 @@ PROHIBITED_CASES = [
         "insurance-red-any",
         "nsw.clause.specified_insurance",
         _PREAMBLE + "The tenant is required to obtain public liability insurance from an "
-        "insurer nominated by the landlord before taking possession.",
+        "insurer of the tenant's choice before taking possession.",
         "red",
     ),
     ClauseCase(

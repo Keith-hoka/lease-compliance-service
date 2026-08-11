@@ -17,7 +17,8 @@ the 2026-08-10 enrichment rotated five distinct single-rule failure
 combinations - per-rule denominators of 5-9 cases sit inside model
 judgment noise, so a per-rule gate cannot converge at this set size.
 The three standard-form families keep per-term gates (n=6 per term,
-stable); the NSW prohibited family keeps per-rule gates.
+stable); the NSW prohibited family pools the same way (second owner
+decision, same date, after equivalent single-run-FP evidence).
 """
 
 from tests.golden.clauses import ClauseCase
