@@ -80,10 +80,11 @@ DATABASE_URL="postgresql+asyncpg://postgres:<db password>@localhost:15433/lease_
   uv run python -m app.ingest nsw
 ```
 
-WARNING: port 15433 is shared with the daily launchd monitor, whose own
-tunnel aborts (and with it the whole run, silently - nothing alerts on
-monitor failure) while a manual tunnel holds the port. The `ssh -f`
-tunnel survives closing the terminal; ALWAYS close it when done:
+Port ownership: manual tunnels use 15433; the daily launchd monitor
+owns 15434 exclusively (split 2026-08-11 - before the split they shared
+15433 and a held manual tunnel silently killed the daily run, which is
+why the historical incident note below existed). A manual `ssh -f`
+tunnel survives closing the terminal; still close it when done:
 
 ```bash
 pkill -f "15433:127.0.0.1:5432"
