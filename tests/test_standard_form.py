@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.clause_audit.document import DocumentInput
 from app.clause_audit.standard_form import (
     CONTAINMENT_THRESHOLD,
+    MAX_MISSING_SHINGLES,
     NSW_REG_SLUG,
     VIC_REGS_SLUG,
     FormTerm,
@@ -63,7 +64,7 @@ def test_containment_full_copy_is_high_and_reordering_immune():
         + term
         + " CLAUSE 41. More unrelated text follows the copied term."
     )
-    assert containment(term, lease) >= CONTAINMENT_THRESHOLD
+    assert containment(term, lease)[0] >= CONTAINMENT_THRESHOLD
 
 
 def test_containment_drops_on_alteration():
@@ -73,7 +74,7 @@ def test_containment_drops_on_alteration():
         "the premises during the tenancy period."
     )
     altered = term.replace("7 days", "no")
-    assert containment(term, altered) < CONTAINMENT_THRESHOLD
+    assert containment(term, altered)[0] < CONTAINMENT_THRESHOLD
 
 
 def test_screen_partitions_verbatim_from_residual_and_short_terms():
@@ -394,13 +395,14 @@ def _screenable(terms) -> set[str]:
     prescribed text - no amount of realistic filling closes that gap, so
     these terms genuinely fall to the LLM residual even when "verbatim".
     """
-    return {
-        t.section_no
-        for t in terms
-        if len(normalize(f"{t.heading} {t.body}").split()) >= 12
-        and len(normalize(t.body).split()) >= 12
-        and containment(f"{t.heading} {t.body}", render_term(t)) >= CONTAINMENT_THRESHOLD
-    }
+    screenable = set()
+    for t in terms:
+        if len(normalize(t.body).split()) < 12:
+            continue
+        ratio, missing = containment(f"{t.heading} {t.body}", render_term(t))
+        if ratio >= CONTAINMENT_THRESHOLD and missing <= MAX_MISSING_SHINGLES:
+            screenable.add(t.section_no)
+    return screenable
 
 
 async def test_verbatim_document_screens_all_screenable_terms_green(corpus_session):
@@ -470,3 +472,24 @@ async def test_matrix_passes_produce_distinct_partitions(corpus_session):
             )
             partitions.append(chunks)
         assert len(set(partitions)) == 3, f"{jurisdiction}: matrix passes not distinct"
+
+
+async def test_single_word_edit_on_long_term_falls_out_of_screen(corpus_session):
+    """The absolute missing-shingle budget closes the ratio blind spot: a
+    fixed 0.9 ratio alone tolerates a one-word adverse edit once a term
+    passes ~87 tokens, silently screening the alteration green. The per-term
+    eval cannot express this case - shipped alterations must defeat the
+    screen by construction - so it is pinned here deterministically."""
+    terms, _ = await fetch_form_terms(corpus_session, "NSW", date(2026, 8, 9), None)
+    long_terms = [t for t in terms if len(normalize(t.body).split()) > 120]
+    assert long_terms, "corpus lost its long terms"
+    victim = max(long_terms, key=lambda t: len(t.body))
+    tokens = victim.body.split()
+    swap_at = next(i for i, w in enumerate(tokens) if w.lower() in {"must", "agrees", "landlord"})
+    tokens[swap_at] = "may" if tokens[swap_at].lower() == "must" else "someone"
+    altered = replace(victim, body=" ".join(tokens))
+    document = build_verbatim([altered if t.section_no == victim.section_no else t for t in terms])
+    _green, residual = screen_terms(terms, document)
+    assert victim.section_no in {t.section_no for t in residual}, (
+        f"{victim.section_no}: one-word edit still screened green"
+    )

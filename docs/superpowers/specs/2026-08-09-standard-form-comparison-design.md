@@ -128,7 +128,7 @@ combinations and NSW showed the same shape (a single-run FP that a full
 rescan could not reproduce); per-rule gates cannot converge at those
 families' 3-9-case denominators. Standard-form families keep per-term
 gates (n=6, stable). A full run at the shipped n=6 matrices is 96
-documents (41 NSW + 27 F1 + 28 F2) and roughly 400-500 LLM calls
+documents (43 NSW + 27 F1 + 26 F2) and roughly 250-500 LLM calls
 (the screen zeroes the untouched terms); screen calibration cases are
 also exact-assert pytest (verbatim screens green, altered screens out)
 so CI exercises the deterministic layer free, and LLM evals keep the

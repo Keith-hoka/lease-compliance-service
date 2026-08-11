@@ -965,6 +965,12 @@ def plan_documents(terms: list) -> list[PlannedDocument]:
     5/6 = 0.833 >= 0.8, where n=4 required a perfect 4/4 - eval evidence
     showed per-case judgment noise alone was enough to flip individual
     rules between runs at n=4, with no content or wording defect to fix).
+    Caveat: passes guarantee distinct PARTITIONS, not distinct documents -
+    chunks that coincide across passes repeat byte-identical documents
+    (about 40 percent of the NSW matrices today), so the affected terms'
+    six cases are repeat samples of four distinct neighbourhoods. Repeat
+    draws still average model noise, which is what the density is for;
+    document-level dedupe is a recorded follow-up.
     Every document's expected label for every rule_id follows directly from
     how it was built: a missing or altered rule_id is red, everything else
     present verbatim (or faithfully paraphrased) is green.

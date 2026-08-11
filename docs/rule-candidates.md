@@ -36,9 +36,10 @@ keeps this survey re-checkable at any time.
 The Act states 37 sections as "a term of every residential tenancy
 agreement". Six crisply decidable, universally present ones (ss 33, 50,
 51, 52, 63, 70) originally shipped as `MANDATORY_RULES`; as of 2026-08-10
-that family is retired, and these six now surface as dual-cited findings
-(prescribed standard-form term plus Act duty section) inside the
-standard-form comparison family instead. The rest are excluded from v1
+that family is retired; five of the six now surface as dual-cited
+findings (prescribed standard-form term plus Act duty section) inside
+the standard-form comparison family, and s 63's repair duty is folded
+into T19's citation (the standard form has no distinct repairs term). The rest are excluded from v1
 because presence in a lease document is situational or procedural rather
 than a universal content term:
 

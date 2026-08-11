@@ -30,6 +30,7 @@ from app.schemas.clause_audit import ClauseFinding, ClauseLeaseInput
 
 SHINGLE_TOKENS = 8
 CONTAINMENT_THRESHOLD = 0.9
+MAX_MISSING_SHINGLES = 7
 MIN_SCREEN_TOKENS = 12
 
 NSW_REG_SLUG = "sl-2019-0629"
@@ -130,12 +131,14 @@ def _shingles(tokens: list[str]) -> set[tuple[str, ...]]:
     return {tuple(tokens[i : i + SHINGLE_TOKENS]) for i in range(len(tokens) - SHINGLE_TOKENS + 1)}
 
 
-def containment(term_text: str, document_text: str) -> float:
+def containment(term_text: str, document_text: str) -> tuple[float, int]:
+    """Containment ratio and the absolute count of missing shingles."""
     term_shingles = _shingles(_tokens(term_text))
     if not term_shingles:
-        return 0.0
+        return 0.0, 0
     document_shingles = _shingles(_tokens(document_text))
-    return len(term_shingles & document_shingles) / len(term_shingles)
+    missing = len(term_shingles - document_shingles)
+    return 1 - missing / len(term_shingles), missing
 
 
 def screen_terms(
@@ -146,6 +149,18 @@ def screen_terms(
     Only the body length is checked against MIN_SCREEN_TOKENS: heading+body
     is always at least as long as body alone, so a heading+body check would
     never fire on a term the body check hasn't already caught.
+
+    Green needs the ratio AND an absolute missing-shingle budget: a fixed
+    ratio alone tolerates single-word adverse edits once a term passes ~87
+    tokens, which would green-light over half the prescribed terms against
+    the family's headline capability. An interior one-word edit breaks all
+    8 windows spanning it, so MAX_MISSING_SHINGLES = 7 pushes any such
+    edit to the LLM regardless of term length (an edit within 7 tokens of
+    a term's edge breaks fewer windows and can still pass - the honest
+    residual). Placeholder-dense terms measure 8-30 missing shingles even
+    on verbatim leases (their bracketed fill values never match), so those
+    few terms are permanently judged rather than screened - the measured
+    cost is 4 Form 1 and 7 Form 2 terms, zero NSW.
     """
     green: list[tuple[FormTerm, float]] = []
     residual: list[FormTerm] = []
@@ -154,8 +169,8 @@ def screen_terms(
             residual.append(term)
             continue
         full = f"{term.heading} {term.body}"
-        ratio = containment(full, document_text)
-        if ratio >= CONTAINMENT_THRESHOLD:
+        ratio, missing = containment(full, document_text)
+        if ratio >= CONTAINMENT_THRESHOLD and missing <= MAX_MISSING_SHINGLES:
             green.append((term, ratio))
         else:
             residual.append(term)
@@ -320,7 +335,7 @@ async def run_standard_form(
             ClauseFinding(
                 rule_id=term.rule_id,
                 verdict="green",
-                summary=_append_note("Prescribed term present verbatim.", note),
+                summary=_append_note(f"Prescribed term present (containment {ratio:.2f}).", note),
                 evidence={"method": "verbatim", "containment": round(ratio, 3)},
                 citations=_citations(term, as_at, act_ids),
             )
