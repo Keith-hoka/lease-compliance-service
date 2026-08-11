@@ -841,14 +841,15 @@ PARAPHRASES = {
     ),
     "vic.clause.sf_f1_t2": "Address of premises: 1 Example Street, Sydney NSW 2000.",
     "vic.clause.sf_f1_t3": (
-        "This section records the rental provider's full name, address, phone number, "
-        "ACN and email, or those of the rental provider's agent if one acts for them, "
-        "and the rental provider must tell the renter within 7 days if any of these "
-        "details change."
+        "The rental provider is Jane Landlord of 1 Example Street, Sydney NSW 2000, "
+        "phone 0400 000 000, email jane.landlord@example.com, and no agent acts for "
+        "the rental provider; the rental provider will tell the renter within 7 days "
+        "if any of these details change."
     ),
     "vic.clause.sf_f1_t4": (
-        "Every renter who is a party to this agreement lists their full name, current "
-        "address, phone number and email address in this section."
+        "The renter is Alex Tenant of 1 Example Street, Sydney NSW 2000, phone "
+        "0400 000 001, email alex.tenant@example.com, and there are no other "
+        "renters party to this agreement."
     ),
     "vic.clause.sf_f1_t5": (
         "Where a fixed-term agreement expires and the renter stays on without the "
