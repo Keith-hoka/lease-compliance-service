@@ -64,6 +64,14 @@ async def eval_session():
     await engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def _no_failover_during_eval():
+    """A mid-run breaker trip would silently score a different model."""
+    assert settings.clause_audit_failover_model == "", (
+        "unset CLAUSE_AUDIT_FAILOVER_MODEL for eval runs"
+    )
+
+
 def _assert_thresholds(stats: dict, thresholds: dict = THRESHOLDS) -> None:
     failures = []
     print(f"\n{'rule':45} {'P':>6} {'R':>6} {'yellow':>7}")
