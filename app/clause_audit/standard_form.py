@@ -2,8 +2,8 @@
 
 Terms are fetched point-in-time from the corpus. The screen shingles a
 term's prescribed text into 8-token windows and computes the fraction found
-in the lease text; verbatim or near-verbatim terms (containment >= 0.9) are
-green without any LLM call. Terms with fewer than 12 usable tokens - or a
+in the lease text; near-verbatim terms (containment >= 0.9 AND at most
+MAX_MISSING_SHINGLES missing windows) are green without any LLM call. Terms with fewer than 12 usable tokens - or a
 prescribed body under 12 tokens, the VIC table-content limitation - always
 go to the LLM. run_standard_form orchestrates both passes: it screens,
 then judges the residual terms in batches, citing each against the
