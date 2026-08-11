@@ -69,3 +69,26 @@ class FieldExtraction(BaseModel):
 
 class FieldsOutput(BaseModel):
     fields: list[FieldExtraction]
+
+
+def strict_schema(model: type[BaseModel]) -> dict:
+    """JSON schema with every object closed, every property required, defaults stripped.
+
+    Both providers' constrained decoding wants closed objects; OpenAI strict
+    mode additionally rejects optional properties and default annotations.
+    Optional fields stay nullable through their anyOf, so the model emits an
+    explicit null instead of omitting the key.
+    """
+    schema = model.model_json_schema()
+    for node in (schema, *schema.get("$defs", {}).values()):
+        _close(node)
+    return schema
+
+
+def _close(node: dict) -> None:
+    if "properties" not in node:
+        return
+    node["additionalProperties"] = False
+    node["required"] = list(node["properties"])
+    for prop in node["properties"].values():
+        prop.pop("default", None)

@@ -35,3 +35,38 @@ def test_create_accepts_vic_and_rejects_unsupported():
     assert body.jurisdiction == "VIC"
     with pytest.raises(ValidationError):
         ClauseAuditCreate.model_validate({"jurisdiction": "QLD"})
+
+
+def test_strict_schema_closes_objects_and_requires_all_fields():
+    from app.llm.schemas import family_output_model, strict_schema
+
+    model = family_output_model(
+        "ProhibitedOutput", ["nsw.clause.carpet_cleaning", "nsw.clause.fumigation"]
+    )
+    schema = strict_schema(model)
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == ["items"]
+    item = schema["$defs"]["ProhibitedOutputItem"]
+    assert item["additionalProperties"] is False
+    assert set(item["required"]) == {"rule_id", "verdict", "reasoning", "clause_quote"}
+    assert "default" not in item["properties"]["clause_quote"]
+
+
+def test_strict_schema_output_still_validates_nullable_fields():
+    from app.llm.schemas import family_output_model, strict_schema
+
+    model = family_output_model("ProhibitedOutput", ["nsw.clause.fumigation"])
+    strict_schema(model)
+    parsed = model.model_validate(
+        {
+            "items": [
+                {
+                    "rule_id": "nsw.clause.fumigation",
+                    "verdict": "green",
+                    "reasoning": "absent",
+                    "clause_quote": None,
+                }
+            ]
+        }
+    )
+    assert parsed.items[0].clause_quote is None

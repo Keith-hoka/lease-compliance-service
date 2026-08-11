@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://rental:rental@localhost:5433/lease_compliance"
     api_keys: str = ""
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
     clause_audit_model: str = "claude-sonnet-5"
     admin_api_key: str = ""
 

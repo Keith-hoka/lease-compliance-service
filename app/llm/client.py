@@ -2,22 +2,30 @@
 
 import base64
 import logging
-from collections.abc import Awaitable, Callable
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel
 
 from app.clause_audit.document import DocumentInput
 from app.core.config import settings
+from app.llm.failover import JudgeError, JudgeFn, ProviderDown
 from app.llm.prompts import SYSTEM
 
 logger = logging.getLogger("app.llm")
 
-JudgeFn = Callable[[DocumentInput, str, type[BaseModel]], Awaitable[BaseModel]]
+__all__ = ["JudgeError", "JudgeFn", "ProviderDown", "make_judge", "parse_model_ref"]
+
+PROVIDERS = ("anthropic", "openai")
 
 
-class JudgeError(RuntimeError):
-    pass
+def parse_model_ref(ref: str) -> tuple[str, str]:
+    """Split 'provider:model'; a bare ref means anthropic."""
+    provider, sep, model = ref.partition(":")
+    if not sep:
+        return "anthropic", ref
+    if provider not in PROVIDERS:
+        raise ValueError(f"unknown provider prefix in model ref: {ref}")
+    return provider, model
 
 
 def document_block(doc: DocumentInput) -> dict:
