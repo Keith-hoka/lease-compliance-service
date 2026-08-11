@@ -154,3 +154,137 @@ async def test_anthropic_client_error_maps_to_judge_error(monkeypatch):
     with pytest.raises(JudgeError) as exc_info:
         await judge(DOC, "i", FieldsOutput)
     assert not isinstance(exc_info.value, ProviderDown)
+
+
+from openai import APIConnectionError as OpenAIConnectionError
+from openai import InternalServerError as OpenAIServerError
+from openai import RateLimitError as OpenAIRateLimitError
+
+from app.llm.providers import openai_ as openai_provider
+
+
+def _openai_response(status="completed", text='{"fields": []}', refusal=False):
+    if refusal:
+        content = [SimpleNamespace(type="refusal", refusal="cannot help")]
+    else:
+        content = [SimpleNamespace(type="output_text", text=text)]
+    return SimpleNamespace(
+        status=status,
+        incomplete_details=SimpleNamespace(reason="max_tokens"),
+        output=[SimpleNamespace(type="message", content=content)],
+        output_text="" if refusal else text,
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=5,
+            input_tokens_details=SimpleNamespace(cached_tokens=0),
+        ),
+    )
+
+
+class StubOpenAI:
+    """Scripted responses.create: returns or raises each result in order."""
+
+    def __init__(self, results):
+        self._results = list(results)
+        self.calls = 0
+        self.responses = self
+
+    async def create(self, **kwargs):
+        self.calls += 1
+        self.kwargs = kwargs
+        result = self._results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+def _openai_judge(monkeypatch, results):
+    stub = StubOpenAI(results)
+    monkeypatch.setattr(openai_provider, "AsyncOpenAI", lambda **kw: stub)
+    return openai_provider.make_openai_judge("gpt-5.6-terra"), stub
+
+
+def test_openai_response_kwargs_shape():
+    kwargs = openai_provider.build_response_kwargs(
+        "gpt-5.6-terra", DOC, "judge these rules", FieldsOutput
+    )
+    assert kwargs["model"] == "gpt-5.6-terra"
+    assert kwargs["max_output_tokens"] == 16000
+    assert kwargs["reasoning"] == {"effort": "medium"}
+    fmt = kwargs["text"]["format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["name"] == "FieldsOutput"
+    assert fmt["strict"] is True
+    assert fmt["schema"]["additionalProperties"] is False
+    content = kwargs["input"][0]["content"]
+    assert content[0] == {
+        "type": "input_text",
+        "text": "<lease_document>\nlease body\n</lease_document>",
+    }
+    assert content[1] == {"type": "input_text", "text": "judge these rules"}
+
+
+def test_openai_pdf_document_part_is_base64_file():
+    part = openai_provider.document_part(DocumentInput(kind="pdf", pdf=b"%PDF-fake"))
+    assert part["type"] == "input_file"
+    assert part["filename"] == "lease.pdf"
+    assert part["file_data"].startswith("data:application/pdf;base64,")
+
+
+async def test_openai_judge_parses_output(monkeypatch):
+    judge, stub = _openai_judge(monkeypatch, [_openai_response()])
+    result = await judge(DOC, "i", FieldsOutput)
+    assert result.fields == [] and stub.calls == 1
+
+
+async def test_openai_incomplete_raises_truncation(monkeypatch):
+    judge, stub = _openai_judge(monkeypatch, [_openai_response(status="incomplete")])
+    with pytest.raises(JudgeError, match="truncated"):
+        await judge(DOC, "i", FieldsOutput)
+    assert stub.calls == 1
+
+
+async def test_openai_refusal_raises_without_retry(monkeypatch):
+    judge, stub = _openai_judge(monkeypatch, [_openai_response(refusal=True)])
+    with pytest.raises(JudgeError, match="declined"):
+        await judge(DOC, "i", FieldsOutput)
+    assert stub.calls == 1
+
+
+async def test_openai_validation_failure_retries_once(monkeypatch):
+    bad = _openai_response(text="not json")
+    judge, stub = _openai_judge(monkeypatch, [bad, _openai_response()])
+    result = await judge(DOC, "i", FieldsOutput)
+    assert result.fields == [] and stub.calls == 2
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        _request_error(OpenAIConnectionError),
+        _status_error(OpenAIRateLimitError, 429),
+        _status_error(OpenAIServerError, 500),
+    ],
+)
+async def test_openai_infra_errors_map_to_provider_down(monkeypatch, error):
+    judge, _ = _openai_judge(monkeypatch, [error])
+    with pytest.raises(ProviderDown):
+        await judge(DOC, "i", FieldsOutput)
+
+
+def test_provider_judge_requires_openai_key(monkeypatch):
+    from app.core.config import settings
+    from app.llm import client as client_module
+
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        client_module._provider_judge("openai:gpt-5.6-terra")
+
+
+def test_provider_judge_builds_openai_judge_with_key(monkeypatch):
+    from app.core.config import settings
+    from app.llm import client as client_module
+
+    monkeypatch.setattr(settings, "openai_api_key", "test-key")
+    judge = client_module._provider_judge("openai:gpt-5.6-terra")
+    assert callable(judge)

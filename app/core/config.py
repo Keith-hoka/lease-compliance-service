@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     clause_audit_model: str = "claude-sonnet-5"
+    clause_audit_failover_model: str = ""
     admin_api_key: str = ""
 
 
