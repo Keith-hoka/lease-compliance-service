@@ -102,9 +102,11 @@ VIC_PROHIBITED_RULES = [
         "A term with the effect that, if the renter contravenes the "
         "agreement, the renter is liable to pay all or part of the "
         "remaining rent, increased rent, a penalty or liquidated damages "
-        "(s 27B(1)(c)). A fixed early-termination fee whose calculation "
-        "basis is set out in the agreement is judged under a separate rule "
-        "and is not by itself this effect.",
+        "(s 27B(1)(c)). A fee that applies because the renter chooses to "
+        "end the agreement early, rather than because the renter "
+        "contravened it, is judged under a separate rule and is not by "
+        "itself this effect - even where the agreement does not explain "
+        "how the fee was calculated.",
     ),
     _act_rule(
         "vic.clause.professional_cleaning_required",

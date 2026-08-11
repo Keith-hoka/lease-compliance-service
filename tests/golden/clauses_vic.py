@@ -40,6 +40,22 @@ VIC_PROHIBITED_CASES = [
         "breakage at the property for the term of the lease.",
         "red",
     ),
+    ClauseCase(
+        "vic-insurance-red-movein-condition",
+        "vic.clause.renter_insurance",
+        _PREAMBLE + "Before the renter is given keys to the premises, the "
+        "renter must show the rental provider proof of a current contents "
+        "insurance policy.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-insurance-red-annual-renewal",
+        "vic.clause.renter_insurance",
+        _PREAMBLE + "The renter must renew and maintain a public liability "
+        "insurance policy for the duration of the tenancy and provide "
+        "evidence of renewal to the rental provider each year.",
+        "red",
+    ),
     # --- vic.clause.fixed_break_fees ---
     ClauseCase(
         "vic-breakfee-red-flat",
@@ -62,6 +78,22 @@ VIC_PROHIBITED_CASES = [
         "vic.clause.fixed_break_fees",
         _PREAMBLE + "Should the renter give notice and vacate prior to "
         "the expiry date, a set reletting amount of $990 becomes due.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-breakfee-red-perweek-nobasis",
+        "vic.clause.fixed_break_fees",
+        _PREAMBLE + "If the renter ends the fixed-term agreement early, a "
+        "break cost of $75 applies for each week remaining in the term, "
+        "with no further explanation of how that amount is worked out.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-breakfee-red-tiered",
+        "vic.clause.fixed_break_fees",
+        _PREAMBLE + "A renter who gives notice to end the fixed-term "
+        "agreement early must pay a lease-break charge of $1,200, "
+        "reducing to $600 after the first six months of the term.",
         "red",
     ),
     ClauseCase(
@@ -147,6 +179,22 @@ VIC_PROHIBITED_CASES = [
         "property on the owner's behalf accepts any responsibility.",
         "red",
     ),
+    ClauseCase(
+        "vic-liabexempt-red-waterdamage",
+        "vic.clause.provider_liability_exemption",
+        _PREAMBLE + "The rental provider accepts no responsibility "
+        "whatsoever for any water damage to the renter's belongings, "
+        "regardless of the cause of the damage or who was at fault.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-liabexempt-red-noaction",
+        "vic.clause.provider_liability_exemption",
+        _PREAMBLE + "The rental provider will not be liable to the renter "
+        "for any loss arising from any act or omission of the rental "
+        "provider in connection with the tenancy.",
+        "red",
+    ),
     # --- vic.clause.breach_penalty ---
     ClauseCase(
         "vic-breach-red-remaining-rent",
@@ -171,6 +219,22 @@ VIC_PROHIBITED_CASES = [
         "under this agreement, the weekly rent payable for the remainder "
         "of the term increases to $650 as a consequence of the "
         "non-compliance.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-breach-red-default-fee",
+        "vic.clause.breach_penalty",
+        _PREAMBLE + "If the renter defaults under any term of this "
+        "agreement, an administration fee of $350 becomes payable to the "
+        "rental provider in addition to any other amount owed.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-breach-red-liquidated",
+        "vic.clause.breach_penalty",
+        _PREAMBLE + "Should the renter contravene any provision of this "
+        "agreement, liquidated damages of $1,800 become immediately "
+        "payable to the rental provider.",
         "red",
     ),
     # --- vic.clause.professional_cleaning_required ---
@@ -198,6 +262,54 @@ VIC_PROHIBITED_CASES = [
         "back, regardless of how clean the premises already are.",
         "red",
     ),
+    ClauseCase(
+        "vic-cleaningreq-red-organic",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "The carpets and window furnishings throughout the "
+        "premises must be professionally cleaned before the keys are "
+        "returned, at the rental provider's expense.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningreq-red-returned-clean",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "The premises must be returned in a professionally "
+        "cleaned state at the end of the tenancy, including all floor "
+        "coverings, at the rental provider's cost.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningreq-red-vacate",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "Before vacating, the whole of the premises must be "
+        "professionally cleaned by a contractor, with the fee payable by "
+        "the rental provider.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningreq-red-carpets-windows",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "All carpets and window treatments must undergo "
+        "professional cleaning at the conclusion of the tenancy, the cost "
+        "of which is borne by the rental provider.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningreq-red-checklist",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "The end-of-tenancy checklist requires the premises "
+        "to be professionally cleaned, an obligation the rental provider "
+        "agrees to fund.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningreq-red-standard",
+        "vic.clause.professional_cleaning_required",
+        _PREAMBLE + "The premises are to be handed back in a "
+        "professionally cleaned condition as a standard requirement of "
+        "this agreement, funded by the rental provider.",
+        "red",
+    ),
     # --- vic.clause.professional_cleaning_cost ---
     ClauseCase(
         "vic-cleaningcost-red-plain",
@@ -209,8 +321,8 @@ VIC_PROHIBITED_CASES = [
     ClauseCase(
         "vic-cleaningcost-red-bond-deduction",
         "vic.clause.professional_cleaning_cost",
-        _PREAMBLE + "The cost of professional cleaning carried out at "
-        "the end of the tenancy will be deducted from the renter's bond.",
+        _PREAMBLE + "The renter's bond is reduced by the amount of any "
+        "professional cleaning invoice issued at the end of the tenancy.",
         "red",
     ),
     ClauseCase(
@@ -219,6 +331,52 @@ VIC_PROHIBITED_CASES = [
         _PREAMBLE + "Reimbursement for professionally cleaning the property "
         "after the renter moves out is to be made by the renter to the "
         "rental provider within 7 days of receiving the invoice.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-bond-release",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "The renter must reimburse the rental provider $250 "
+        "for professional cleaning costs, payable before the bond is "
+        "released.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-invoice",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "Any invoice for professional cleaning of the "
+        "premises issued at the end of the tenancy is payable by the "
+        "renter within 14 days.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-final-statement",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "Any professional cleaning charge appearing on the "
+        "final bond statement is payable by the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-quote",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "The renter is liable for the amount of any "
+        "professional cleaning quote obtained by the rental provider at "
+        "the end of the tenancy.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-outstanding",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "Outstanding professional cleaning charges at the "
+        "end of the tenancy are recoverable from the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-cleaningcost-red-schedule",
+        "vic.clause.professional_cleaning_cost",
+        _PREAMBLE + "Professional cleaning fees, if charged, are listed "
+        "as a renter liability in the exit fee schedule attached to this "
+        "agreement.",
         "red",
     ),
     # --- vic.clause.no_breach_rent_inducement ---
@@ -246,6 +404,22 @@ VIC_PROHIBITED_CASES = [
         "half.",
         "red",
     ),
+    ClauseCase(
+        "vic-inducement-red-loyalty-credit",
+        "vic.clause.no_breach_rent_inducement",
+        _PREAMBLE + "A loyalty credit of $10 per week is applied to the "
+        "rent account for each week the renter does not breach this "
+        "agreement.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-inducement-red-discount-maintained",
+        "vic.clause.no_breach_rent_inducement",
+        _PREAMBLE + "So long as the renter does not breach this "
+        "agreement, the discounted weekly rent of $480 (instead of the "
+        "standard $520) continues to apply for the full term.",
+        "red",
+    ),
     # --- vic.clause.preparation_costs ---
     ClauseCase(
         "vic-prepcosts-red-plain",
@@ -269,6 +443,22 @@ VIC_PROHIBITED_CASES = [
         "vic.clause.preparation_costs",
         _PREAMBLE + "Before signing, the renter reimburses the agent's "
         "document-drawing fee for putting this lease together.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-prepcosts-red-admin-fee",
+        "vic.clause.preparation_costs",
+        _PREAMBLE + "An administration fee of $150 charged by the rental "
+        "provider's agent for drawing up this agreement is payable by the "
+        "renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-prepcosts-red-legalfees",
+        "vic.clause.preparation_costs",
+        _PREAMBLE + "The renter must reimburse the rental provider's "
+        "solicitor's fees for preparing this residential rental "
+        "agreement.",
         "red",
     ),
     # --- vic.clause.unreviewed_contract ---
@@ -298,6 +488,23 @@ VIC_PROHIBITED_CASES = [
         "has not been shown to the renter.",
         "red",
     ),
+    ClauseCase(
+        "vic-unreviewed-red-management-terms",
+        "vic.clause.unreviewed_contract",
+        _PREAMBLE + "The renter is bound by the building manager's house "
+        "rules as updated from time to time, none of which have been "
+        "shown to the renter before this agreement was entered into.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-unreviewed-red-bodycorp",
+        "vic.clause.unreviewed_contract",
+        _PREAMBLE + "The renter agrees to comply with the body corporate "
+        "rules governing the building, as amended from time to time, "
+        "without having been given a copy of those rules before signing "
+        "this agreement.",
+        "red",
+    ),
     # --- vic.clause.renter_indemnity ---
     ClauseCase(
         "vic-indemnity-red-plain",
@@ -323,6 +530,53 @@ VIC_PROHIBITED_CASES = [
         "the rental provider incurs, and to compensate the rental provider "
         "in full, for any claim made by a third party connected with the "
         "tenancy.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-injury",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter must indemnify the rental provider for "
+        "any injury sustained by a visitor to the premises, regardless "
+        "of the cause.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-legalcosts",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter indemnifies the rental provider against "
+        "all legal costs the rental provider incurs in connection with "
+        "any dispute about the tenancy.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-propertydamage",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter indemnifies the rental provider against "
+        "any claim for damage to neighbouring property arising from the "
+        "renter's occupation of the premises.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-thirdpartyclaim",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter must indemnify the rental provider for "
+        "any third party claim connected with the renter's use of the "
+        "premises.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-fullindemnity",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter fully indemnifies the rental provider "
+        "against all losses of any kind connected with this tenancy.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-indemnity-red-defencecosts",
+        "vic.clause.renter_indemnity",
+        _PREAMBLE + "The renter indemnifies the rental provider for the "
+        "costs of defending any claim brought against the rental "
+        "provider in connection with the tenancy.",
         "red",
     ),
     # --- vic.clause.late_availability_claim_waiver ---
@@ -351,6 +605,23 @@ VIC_PROHIBITED_CASES = [
         "no payment or credit will be owed by the rental provider.",
         "red",
     ),
+    ClauseCase(
+        "vic-lateavail-red-forfeit",
+        "vic.clause.late_availability_claim_waiver",
+        _PREAMBLE + "If the premises are not ready for the renter to move "
+        "in on the start date, the renter forfeits any right to seek "
+        "compensation from the rental provider for the delay.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-lateavail-red-nocompensation",
+        "vic.clause.late_availability_claim_waiver",
+        _PREAMBLE + "Should the premises not be available for the renter "
+        "to occupy on the agreed start date, the renter has no "
+        "entitlement to any compensation whatsoever from the rental "
+        "provider.",
+        "red",
+    ),
     # --- vic.clause.costly_payment_method ---
     ClauseCase(
         "vic-payment-red-card-surcharge",
@@ -374,6 +645,22 @@ VIC_PROHIBITED_CASES = [
         _PREAMBLE + "Rent must be paid one month in advance by bank "
         "cheque or money order, obtained at the renter's own cost, "
         "delivered to the rental provider's office.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-payment-red-moneyorder-fee",
+        "vic.clause.costly_payment_method",
+        _PREAMBLE + "Rent must be paid by money order, which the renter "
+        "must purchase at a cost of $5 per transaction from the post "
+        "office.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-payment-red-processing-fee",
+        "vic.clause.costly_payment_method",
+        _PREAMBLE + "Rent must be paid through the rental provider's "
+        "online payment portal, which charges the renter a 2% processing "
+        "fee on every payment.",
         "red",
     ),
     # --- vic.clause.third_party_services ---
@@ -403,6 +690,22 @@ VIC_PROHIBITED_CASES = [
         "building.",
         "red",
     ),
+    ClauseCase(
+        "vic-thirdparty-red-pestcontrol",
+        "vic.clause.third_party_services",
+        _PREAMBLE + "Any pest control treatment required at the premises "
+        "must be carried out by BugAway Pty Ltd, the contractor nominated "
+        "by the rental provider, at the renter's cost.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-thirdparty-red-locksmith",
+        "vic.clause.third_party_services",
+        _PREAMBLE + "Any lock or key replacement at the premises must be "
+        "carried out by SecureKey Locksmiths, the locksmith nominated by "
+        "the rental provider, at the renter's expense.",
+        "red",
+    ),
     # --- vic.clause.safety_maintenance_transfer ---
     ClauseCase(
         "vic-safety-red-oldstyle",
@@ -425,6 +728,20 @@ VIC_PROHIBITED_CASES = [
         _PREAMBLE + "Keeping the property's fire-detection equipment in "
         "working order, including engaging a technician and covering "
         "whatever that technician charges, falls to the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-safety-red-poolinspection",
+        "vic.clause.safety_maintenance_transfer",
+        _PREAMBLE + "The cost of the annual swimming pool barrier safety "
+        "inspection at the premises is the renter's responsibility.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-safety-red-electrical",
+        "vic.clause.safety_maintenance_transfer",
+        _PREAMBLE + "The cost of the periodic electrical safety check at "
+        "the premises is payable by the renter.",
         "red",
     ),
     # --- vic.clause.tribunal_costs_transfer ---
@@ -453,6 +770,54 @@ VIC_PROHIBITED_CASES = [
         "lodge that case is recoverable from the renter.",
         "red",
     ),
+    ClauseCase(
+        "vic-tribunal-red-hearing-costs",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "Any costs the rental provider incurs attending a "
+        "VCAT hearing about this tenancy, including representation costs, "
+        "must be reimbursed by the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-tribunal-red-order-costs",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "If VCAT makes an order relating to this tenancy, any "
+        "costs the rental provider incurs in obtaining that order are "
+        "payable by the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-tribunal-red-legalrep",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "Legal representation costs incurred by the rental "
+        "provider in any Tribunal proceeding about this tenancy are "
+        "payable by the renter.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-tribunal-red-conference",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "Any costs arising from the rental provider's "
+        "attendance at a VCAT compulsory conference or hearing about "
+        "this tenancy are the renter's responsibility.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-tribunal-red-lodgement",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "The renter must reimburse the lodgement fee the "
+        "rental provider pays to bring any matter about this tenancy "
+        "before the Tribunal.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-tribunal-red-vcat-generic",
+        "vic.clause.tribunal_costs_transfer",
+        _PREAMBLE + "Where the rental provider is a party to a VCAT "
+        "proceeding concerning this tenancy, the renter bears the rental "
+        "provider's costs of that proceeding.",
+        "red",
+    ),
     # --- vic.clause.insurance_excess_transfer ---
     ClauseCase(
         "vic-excess-red-plain",
@@ -477,6 +842,22 @@ VIC_PROHIBITED_CASES = [
         "property insurance relating to the premises, the renter covers "
         "whatever contribution amount the insurer requires before the "
         "insurer pays out.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-excess-red-directpay",
+        "vic.clause.insurance_excess_transfer",
+        _PREAMBLE + "Should the rental provider's insurer require payment "
+        "of an excess before repairing damage to the premises, the renter "
+        "must pay that excess directly to the insurer.",
+        "red",
+    ),
+    ClauseCase(
+        "vic-excess-red-fixedamount",
+        "vic.clause.insurance_excess_transfer",
+        _PREAMBLE + "If a claim is made on the rental provider's landlord "
+        "insurance policy in connection with the premises, the renter "
+        "must pay the first $500 of that claim.",
         "red",
     ),
 ]
