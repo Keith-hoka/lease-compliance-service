@@ -5,6 +5,7 @@ import logging
 
 from openai import (
     APIConnectionError,
+    APIResponseValidationError,
     APIStatusError,
     AsyncOpenAI,
     InternalServerError,
@@ -80,7 +81,7 @@ def make_openai_judge(model: str) -> JudgeFn:
                 response = await client.responses.create(**kwargs)
             except (APIConnectionError, InternalServerError, RateLimitError) as exc:
                 raise ProviderDown(f"openai unavailable: {type(exc).__name__}") from exc
-            except APIStatusError as exc:
+            except (APIStatusError, APIResponseValidationError) as exc:
                 raise JudgeError(f"openai rejected the request: {type(exc).__name__}") from exc
             usage = response.usage
             logger.info(

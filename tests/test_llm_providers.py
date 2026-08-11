@@ -156,6 +156,18 @@ async def test_anthropic_client_error_maps_to_judge_error(monkeypatch):
     assert not isinstance(exc_info.value, ProviderDown)
 
 
+async def test_anthropic_response_validation_error_maps_to_judge_error(monkeypatch):
+    from anthropic import APIResponseValidationError
+
+    error = APIResponseValidationError(
+        response=httpx.Response(200, request=httpx.Request("POST", "https://api.test")), body=None
+    )
+    judge, _ = _anthropic_judge(monkeypatch, [error])
+    with pytest.raises(JudgeError) as exc_info:
+        await judge(DOC, "i", FieldsOutput)
+    assert not isinstance(exc_info.value, ProviderDown)
+
+
 from openai import APIConnectionError as OpenAIConnectionError
 from openai import InternalServerError as OpenAIServerError
 from openai import RateLimitError as OpenAIRateLimitError
@@ -270,6 +282,18 @@ async def test_openai_infra_errors_map_to_provider_down(monkeypatch, error):
     judge, _ = _openai_judge(monkeypatch, [error])
     with pytest.raises(ProviderDown):
         await judge(DOC, "i", FieldsOutput)
+
+
+async def test_openai_response_validation_error_maps_to_judge_error(monkeypatch):
+    from openai import APIResponseValidationError
+
+    error = APIResponseValidationError(
+        response=httpx.Response(200, request=httpx.Request("POST", "https://api.test")), body=None
+    )
+    judge, _ = _openai_judge(monkeypatch, [error])
+    with pytest.raises(JudgeError) as exc_info:
+        await judge(DOC, "i", FieldsOutput)
+    assert not isinstance(exc_info.value, ProviderDown)
 
 
 def test_provider_judge_requires_openai_key(monkeypatch):

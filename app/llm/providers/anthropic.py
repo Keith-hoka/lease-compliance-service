@@ -5,6 +5,7 @@ import logging
 
 from anthropic import (
     APIConnectionError,
+    APIResponseValidationError,
     APIStatusError,
     AsyncAnthropic,
     InternalServerError,
@@ -66,7 +67,7 @@ def make_anthropic_judge(model: str) -> JudgeFn:
                 response = await client.messages.create(**kwargs)
             except (APIConnectionError, InternalServerError, RateLimitError) as exc:
                 raise ProviderDown(f"anthropic unavailable: {type(exc).__name__}") from exc
-            except APIStatusError as exc:
+            except (APIStatusError, APIResponseValidationError) as exc:
                 raise JudgeError(f"anthropic rejected the request: {type(exc).__name__}") from exc
             usage = response.usage
             logger.info(

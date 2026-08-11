@@ -21,6 +21,8 @@ def _judge(script):
             raise ProviderDown("x")
         if action == "bad":
             raise JudgeError("x")
+        if action == "boom":
+            raise ValueError("x")
         return action
 
     judge.calls = calls
@@ -128,6 +130,21 @@ async def test_half_open_probe_content_error_closes():
     assert wrapper.state == "closed"
 
 
+async def test_probe_unresolved_exception_reopens_and_next_call_uses_backup():
+    wrapper, primary, _backup, now = _wrapper(["down"] * 3 + ["boom"], ["b1", "b2"])
+    for _ in range(3):
+        try:
+            await wrapper(DOC, "i", FieldsOutput)
+        except ProviderDown:
+            pass
+    now["t"] += COOLDOWN_SECONDS
+    with pytest.raises(ValueError):
+        await wrapper(DOC, "i", FieldsOutput)
+    assert wrapper.state == "open"
+    assert await wrapper(DOC, "i", FieldsOutput) == "b2"
+    assert len(primary.calls) == 4
+
+
 async def test_double_failure_raises_and_stays_open():
     wrapper, _, _, _ = _wrapper(["down"] * 3, ["down"])
     for _ in range(2):
@@ -154,6 +171,13 @@ async def test_drain_reports_first_use_order_then_clears():
             await wrapper(DOC, "i", FieldsOutput)
     await wrapper(DOC, "i", FieldsOutput)
     assert wrapper.drain_models_used() == ["claude-sonnet-5", "openai:gpt-5.6-terra"]
+    assert wrapper.drain_models_used() == []
+
+
+async def test_drain_ignores_content_error_calls():
+    wrapper, _, _, _ = _wrapper(["bad"])
+    with pytest.raises(JudgeError):
+        await wrapper(DOC, "i", FieldsOutput)
     assert wrapper.drain_models_used() == []
 
 
@@ -186,4 +210,5 @@ def test_make_judge_wires_backup_when_configured(monkeypatch):
     monkeypatch.setattr(settings, "clause_audit_failover_model", "openai:gpt-5.6-terra")
     judge = client_module.make_judge()
     assert isinstance(judge, FailoverJudge)
-    assert judge.state == "closed"
+    assert judge._backup is not None
+    assert judge._backup_ref == "openai:gpt-5.6-terra"

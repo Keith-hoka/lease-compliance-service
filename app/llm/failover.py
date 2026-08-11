@@ -34,7 +34,10 @@ class FailoverJudge:
     response - including a content-level JudgeError - closes the breaker;
     ProviderDown re-opens it. The state property reflects the last call,
     not wall-clock time. drain_models_used() returns the refs that judged
-    successfully since the previous drain, in first-use order.
+    successfully since the previous drain, in first-use order. A probe
+    that ends without resolving to ProviderDown, JudgeError, or success
+    (e.g. a cancellation) re-opens the breaker with a fresh cooldown
+    rather than stranding it in half_open.
     """
 
     def __init__(
@@ -86,9 +89,13 @@ class FailoverJudge:
         except JudgeError:
             self._register_primary_up()
             raise
-        self._register_primary_up()
-        self._models_used.setdefault(self._primary_ref)
-        return result
+        else:
+            self._register_primary_up()
+            self._models_used.setdefault(self._primary_ref)
+            return result
+        finally:
+            if self._state == "half_open":
+                self._trip("probe unresolved")
 
     def _register_primary_up(self) -> None:
         self._failures = 0
@@ -107,7 +114,6 @@ class FailoverJudge:
     def _trip(self, why: str) -> None:
         self._state = "open"
         self._opened_at = self._clock()
-        self._failures = 0
         logger.warning(
             "failover breaker open (%s): routing %s traffic to %s",
             why,
