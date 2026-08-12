@@ -11,6 +11,11 @@ FILLERS = {
     "amount": "$550.00",
     "date": "1 March 2026",
     "name": "Alex Tenant",
+    # VIC F2 term 15's rent-adjustment options carry percentage and dollar
+    # slots; pouring the name filler into them ("a fixed percentage of Alex
+    # Tenant") made every verbatim rendering read as an invalidly completed
+    # form, which the judge correctly flagged (round-3 regression, P=0.46).
+    "percentage": "5%",
     "address": "1 Example Street, Sydney NSW 2000",
     # VIC F2 term 38 "Extension of term" states its own rule in the same
     # breath as its blank: the new end date "must be at least 5 years and
@@ -58,7 +63,9 @@ def _fill(text: str) -> str:
             return ""
         if "new end date" in inner:
             return FILLERS["extended_date"]
-        if "amount" in inner or "$" in inner:
+        if "percent" in inner:
+            return FILLERS["percentage"]
+        if "amount" in inner or "dollar" in inner or "$" in inner:
             return FILLERS["amount"]
         if "date" in inner:
             return FILLERS["date"]
@@ -796,9 +803,11 @@ ALTERATIONS = {
 
 PARAPHRASES = {
     "nsw.clause.sf_t3": (
-        "The tenant will pay the rent when it falls due, will cover the landlord's "
-        "bank charges if the tenant's payment fails to clear, and agrees the way rent "
-        "is paid can only be changed if both landlord and tenant consent."
+        "The tenant will pay the rent when it falls due, will repay the landlord's "
+        "cost of replacing any rent deposit book or rent card the tenant loses, will "
+        "cover the landlord's bank charges if the tenant's payment fails to clear, "
+        "and agrees the way rent is paid can only be changed if both landlord and "
+        "tenant consent."
     ),
     "nsw.clause.sf_t15": (
         "The landlord promises the tenant may use and enjoy the residential premises "
