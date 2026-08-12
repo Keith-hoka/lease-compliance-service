@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +33,9 @@ async def lifespan(app: FastAPI):
     await sweep_stale()
     task = None
     if clause_audit_enabled():
-        task = asyncio.create_task(worker_loop(make_judge()))
+        judge = make_judge()
+        app.state.judge = judge
+        task = asyncio.create_task(worker_loop(judge))
     yield
     if task is not None:
         task.cancel()
@@ -54,10 +56,11 @@ app.include_router(legislation_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
-async def health(session: Annotated[AsyncSession, Depends(get_session)]) -> dict:
+async def health(request: Request, session: Annotated[AsyncSession, Depends(get_session)]) -> dict:
     """Liveness plus the cheapest dead-worker detector: the pending queue.
 
-    HEAD is allowed because uptime monitors probe with it.
+    HEAD is allowed because uptime monitors probe with it. llm_failover
+    appears only when the clause-audit worker is running.
     """
     count, oldest = (
         await session.execute(
@@ -67,4 +70,8 @@ async def health(session: Annotated[AsyncSession, Depends(get_session)]) -> dict
         )
     ).one()
     age = (datetime.now(UTC) - oldest).total_seconds() if oldest is not None else None
-    return {"status": "ok", "clause_audit": {"pending": count, "oldest_pending_seconds": age}}
+    payload = {"status": "ok", "clause_audit": {"pending": count, "oldest_pending_seconds": age}}
+    judge = getattr(request.app.state, "judge", None)
+    if judge is not None:
+        payload["llm_failover"] = {"state": judge.state, "active_model": judge.active_model}
+    return payload

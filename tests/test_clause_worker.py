@@ -10,8 +10,14 @@ from app.clause_audit import worker
 from app.clause_audit.rules import ClauseRule
 from app.ingest.loader import load_version
 from app.ingest.parser import ParsedSection
+from app.llm.failover import FailoverJudge
 from app.models import Act, ClauseAuditJob
 from app.rules.base import SectionRef
+
+
+def _wrap(judge, ref="claude-opus-4-8"):
+    return FailoverJudge(primary=judge, primary_ref=ref)
+
 
 AS_AT = date(2026, 7, 28)
 CARPET = "The tenant must have the carpet professionally cleaned at the end of the tenancy."
@@ -99,12 +105,12 @@ async def test_run_once_processes_oldest_pending(fake_judge, session_factory, se
     fake_judge.responses["ProhibitedOutput"] = RED
     job_id = await _add(session_factory, _job())
 
-    assert await worker.run_once(fake_judge, session_factory) is True
+    assert await worker.run_once(_wrap(fake_judge), session_factory) is True
     row = await _fetch(session_factory, job_id)
     assert row.status == "succeeded" and row.document is None
     assert row.findings[0]["rule_id"] == "nsw.clause.carpet_cleaning"
 
-    assert await worker.run_once(fake_judge, session_factory) is False
+    assert await worker.run_once(_wrap(fake_judge), session_factory) is False
 
 
 async def test_run_once_failure_is_sanitised_and_wipes(session_factory, seeded_s19):
@@ -112,7 +118,7 @@ async def test_run_once_failure_is_sanitised_and_wipes(session_factory, seeded_s
         raise RuntimeError("postgresql://user:secret@host exploded")
 
     job_id = await _add(session_factory, _job())
-    assert await worker.run_once(broken_judge, session_factory) is True
+    assert await worker.run_once(_wrap(broken_judge), session_factory) is True
     row = await _fetch(session_factory, job_id)
     assert row.status == "failed" and row.document is None
     assert row.error == "internal error while processing the job"
@@ -126,7 +132,7 @@ async def test_run_once_judge_error_passes_through(session_factory, seeded_s19):
         raise JudgeError("model declined the request")
 
     job_id = await _add(session_factory, _job())
-    assert await worker.run_once(declining_judge, session_factory) is True
+    assert await worker.run_once(_wrap(declining_judge), session_factory) is True
     row = await _fetch(session_factory, job_id)
     assert row.status == "failed"
     assert row.error == "model declined the request"
@@ -138,7 +144,7 @@ async def test_run_once_timeout_marks_failed(session_factory, seeded_s19, monkey
 
     monkeypatch.setattr(worker, "JOB_TIMEOUT_SECONDS", 0.01)
     job_id = await _add(session_factory, _job())
-    assert await worker.run_once(slow_judge, session_factory) is True
+    assert await worker.run_once(_wrap(slow_judge), session_factory) is True
     row = await _fetch(session_factory, job_id)
     assert row.status == "failed" and "timed out" in row.error
 
@@ -167,7 +173,7 @@ async def test_worker_loop_survives_claim_errors(
 
     monkeypatch.setattr(worker, "POLL_SECONDS", 0.01)
     job_id = await _add(session_factory, _job())
-    task = asyncio.create_task(worker.worker_loop(fake_judge, flaky_factory))
+    task = asyncio.create_task(worker.worker_loop(_wrap(fake_judge), flaky_factory))
     row = None
     for _ in range(200):
         row = await _fetch(session_factory, job_id)
@@ -185,9 +191,18 @@ async def test_concurrent_claims_take_distinct_jobs(fake_judge, session_factory,
     first = await _add(session_factory, _job())
     second = await _add(session_factory, _job())
     results = await asyncio.gather(
-        worker.run_once(fake_judge, session_factory),
-        worker.run_once(fake_judge, session_factory),
+        worker.run_once(_wrap(fake_judge), session_factory),
+        worker.run_once(_wrap(fake_judge), session_factory),
     )
     assert list(results) == [True, True]
     statuses = {(await _fetch(session_factory, job_id)).status for job_id in (first, second)}
     assert statuses == {"succeeded"}
+
+
+async def test_run_once_records_actual_model(fake_judge, session_factory, seeded_s19):
+    fake_judge.responses["ProhibitedOutput"] = RED
+    job_id = await _add(session_factory, _job())
+    await worker.run_once(_wrap(fake_judge, ref="claude-sonnet-5"), session_factory)
+    row = await _fetch(session_factory, job_id)
+    assert row.status == "succeeded"
+    assert row.model == "claude-sonnet-5"

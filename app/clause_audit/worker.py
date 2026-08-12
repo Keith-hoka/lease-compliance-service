@@ -8,7 +8,8 @@ from sqlalchemy import select
 
 from app.clause_audit.processor import process_job
 from app.core.db import async_session_factory
-from app.llm.client import JudgeError, JudgeFn
+from app.llm.client import JudgeError
+from app.llm.failover import FailoverJudge
 from app.models import ClauseAuditJob
 
 logger = logging.getLogger("app.clause_audit")
@@ -50,7 +51,7 @@ async def claim_next(session) -> ClauseAuditJob | None:
     return job
 
 
-async def run_once(judge: JudgeFn, session_factory=async_session_factory) -> bool:
+async def run_once(judge: FailoverJudge, session_factory=async_session_factory) -> bool:
     """Process at most one job; True when a job was claimed."""
     async with session_factory() as session:
         job = await claim_next(session)
@@ -59,6 +60,9 @@ async def run_once(judge: JudgeFn, session_factory=async_session_factory) -> boo
         job_id = job.id
         try:
             await asyncio.wait_for(process_job(session, job, judge), JOB_TIMEOUT_SECONDS)
+            used = judge.drain_models_used()
+            if used:
+                job.model = "+".join(used)
             await session.commit()
             logger.info("clause audit job %s succeeded", job_id)
         except TimeoutError:
@@ -70,6 +74,9 @@ async def run_once(judge: JudgeFn, session_factory=async_session_factory) -> boo
         except Exception:
             logger.exception("clause audit job %s failed", job_id)
             await _fail(session, job_id, INTERNAL_ERROR)
+        leftover = judge.drain_models_used()
+        if leftover:
+            logger.info("clause audit job %s used %s before failing", job_id, "+".join(leftover))
         return True
 
 
@@ -83,7 +90,7 @@ async def _fail(session, job_id, error: str) -> None:
     await session.commit()
 
 
-async def worker_loop(judge: JudgeFn, session_factory=async_session_factory) -> None:
+async def worker_loop(judge: FailoverJudge, session_factory=async_session_factory) -> None:
     """Poll forever; survive any per-iteration failure so the worker never dies."""
     while True:
         try:

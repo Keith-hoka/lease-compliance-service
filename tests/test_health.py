@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
+from app.llm.failover import FailoverJudge
+from app.main import app
 from app.models import ClauseAuditJob
 
 
@@ -9,6 +11,7 @@ async def test_health_with_empty_queue(client):
     body = response.json()
     assert body["status"] == "ok"
     assert body["clause_audit"] == {"pending": 0, "oldest_pending_seconds": None}
+    assert "llm_failover" not in body
 
 
 async def test_health_answers_head_requests(client):
@@ -43,3 +46,13 @@ async def test_health_reports_pending_queue(client, db_session):
     body = (await client.get("/health")).json()
     assert body["clause_audit"]["pending"] == 2
     assert body["clause_audit"]["oldest_pending_seconds"] >= 100
+
+
+async def test_health_reports_failover_state(client, monkeypatch):
+    async def ok(doc, instruction, output_model):
+        return None
+
+    judge = FailoverJudge(primary=ok, primary_ref="claude-sonnet-5")
+    monkeypatch.setattr(app.state, "judge", judge, raising=False)
+    body = (await client.get("/health")).json()
+    assert body["llm_failover"] == {"state": "closed", "active_model": "claude-sonnet-5"}

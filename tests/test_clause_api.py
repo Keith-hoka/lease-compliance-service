@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from app.core.config import settings
+from app.llm.failover import FailoverJudge
 from app.models import ClauseAuditJob
 
 KEY = {"X-API-Key": "test-key"}
@@ -152,12 +153,16 @@ async def test_lifespan_sweeps_and_starts_worker_when_enabled(monkeypatch):
         started["n"] += 1
         await asyncio.sleep(3600)
 
+    async def noop(doc, instruction, output_model):
+        pass
+
     monkeypatch.setattr(main, "sweep_stale", spy_sweep)
     monkeypatch.setattr(main, "worker_loop", spy_loop)
-    monkeypatch.setattr(main, "make_judge", lambda: object())
+    monkeypatch.setattr(main, "make_judge", lambda: FailoverJudge(primary=noop, primary_ref="test"))
     async with main.lifespan(main.app):
         await asyncio.sleep(0)
     assert swept["n"] == 1 and started["n"] == 1
+    del main.app.state.judge
 
 
 async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeypatch):
@@ -220,7 +225,8 @@ async def test_post_worker_get_end_to_end(client, db_engine, fake_judge, monkeyp
     )
     assert created.status_code == 202
 
-    assert await worker.run_once(fake_judge, factory) is True
+    judge = FailoverJudge(primary=fake_judge, primary_ref="claude-opus-4-8")
+    assert await worker.run_once(judge, factory) is True
 
     done = await client.get(f"/v1/clause-audits/{created.json()['id']}", headers=KEY)
     body = done.json()
