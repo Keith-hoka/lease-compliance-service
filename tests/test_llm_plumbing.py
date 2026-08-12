@@ -68,7 +68,7 @@ def test_build_create_kwargs_shape():
     doc = DocumentInput(kind="text", text="lease body")
     kwargs = build_create_kwargs("claude-opus-4-8", doc, "judge these rules", FieldsOutput)
     assert kwargs["model"] == "claude-opus-4-8"
-    assert kwargs["max_tokens"] == 8000
+    assert kwargs["max_tokens"] == 16000
     assert kwargs["thinking"] == {"type": "adaptive"}
     assert kwargs["system"] == SYSTEM
     content = kwargs["messages"][0]["content"]

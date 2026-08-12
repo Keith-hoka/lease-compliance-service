@@ -130,7 +130,7 @@ SDK exception mapping: connection/timeout/5xx/429-exhausted ->
 
 Unchanged: `SYSTEM` prompt, `thinking: {"type": "adaptive"}`,
 `cache_control: ephemeral` placement, PDF document block,
-`max_tokens=8000`, SDK connection-level retries.
+`max_tokens=16000` (amended 2026-08-12, owner decision: 8000 truncated 8-term batches once the all-required schema inflated per-item output; probe-verified), SDK connection-level retries.
 
 ## OpenAI adapter
 

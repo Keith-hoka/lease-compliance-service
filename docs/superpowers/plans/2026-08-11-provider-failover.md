@@ -33,7 +33,7 @@ structured outputs), pytest.
 - `ProviderDown` subclasses `JudgeError`. 4xx client errors are
   `JudgeError`, never `ProviderDown`.
 - Breaker constants: `FAILURE_THRESHOLD = 3`, `COOLDOWN_SECONDS = 300.0`.
-- Anthropic: `max_tokens=8000`, `thinking={"type": "adaptive"}`,
+- Anthropic: `max_tokens=16000` (amended from 8000, owner decision 2026-08-12 - truncation evidence), `thinking={"type": "adaptive"}`,
   `cache_control` placement unchanged. OpenAI:
   `max_output_tokens=16000`, `reasoning={"effort": "medium"}`.
 - Model refs: `provider:model` with prefixes `anthropic:`/`openai:`;
@@ -325,7 +325,7 @@ def test_anthropic_create_kwargs_use_output_config():
         "claude-sonnet-5", DOC, "judge these rules", FieldsOutput
     )
     assert kwargs["model"] == "claude-sonnet-5"
-    assert kwargs["max_tokens"] == 8000
+    assert kwargs["max_tokens"] == 16000
     assert kwargs["thinking"] == {"type": "adaptive"}
     fmt = kwargs["output_config"]["format"]
     assert fmt["type"] == "json_schema"

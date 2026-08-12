@@ -88,7 +88,7 @@ def test_anthropic_create_kwargs_use_output_config():
         "claude-sonnet-5", DOC, "judge these rules", FieldsOutput
     )
     assert kwargs["model"] == "claude-sonnet-5"
-    assert kwargs["max_tokens"] == 8000
+    assert kwargs["max_tokens"] == 16000
     assert kwargs["thinking"] == {"type": "adaptive"}
     fmt = kwargs["output_config"]["format"]
     assert fmt["type"] == "json_schema"

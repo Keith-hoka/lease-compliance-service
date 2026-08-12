@@ -21,7 +21,11 @@ from app.llm.schemas import strict_schema
 
 logger = logging.getLogger("app.llm")
 
-MAX_TOKENS = 8000
+# Adaptive thinking and the all-required output schema both spend from this
+# budget; 8000 truncated 8-term standard-form batches (probe-verified) and
+# invited silent item omissions. Owner decision 2026-08-12: 16000, matching
+# the OpenAI adapter's reasoning-headroom rationale.
+MAX_TOKENS = 16000
 
 
 def document_block(doc: DocumentInput) -> dict:
