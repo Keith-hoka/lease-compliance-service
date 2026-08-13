@@ -18,6 +18,35 @@ From the repo root on the Mac (`LEASE_DEPLOY_SERVER` and
 Migrations run on every deploy (upgrade only). Rolling back a schema
 change is a manual decision - restore a backup or write a down migration.
 
+After editing the server `.env`, apply it by re-running `deploy.sh <tag>` -
+never a bare `docker compose up` on the droplet: `compose.yaml` pins the
+image as `${API_TAG:-latest}` and only deploy.sh exports `API_TAG`, so a
+bare recreate silently falls back to the stale `latest` image (observed
+2026-08-13).
+
+## LLM provider failover
+
+The judge runs on `CLAUSE_AUDIT_MODEL` (default `claude-sonnet-5`) with an
+automatic circuit-breaker failover to `CLAUSE_AUDIT_FAILOVER_MODEL` when
+the primary provider is down (3 consecutive infrastructure failures ->
+backup; probe and self-recover after 300 s). Production `.env` carries:
+
+- `OPENAI_API_KEY` - backup provider credential
+- `CLAUSE_AUDIT_FAILOVER_MODEL=openai:gpt-5.6-terra` - eval-gated backup
+  (docs/model-evals.md records the gate); empty disables failover
+
+`GET /health` exposes `llm_failover: {"state", "active_model"}` -
+`state=closed` with the Anthropic model is the normal reading; `open`
+means traffic is on the backup (WARNING logged on every transition).
+Jobs record the model that actually judged them.
+
+Backup smoke (proves the OpenAI path end-to-end in production without
+waiting for an outage): append `CLAUSE_AUDIT_MODEL=openai:gpt-5.6-terra`
+to the server `.env`, `deploy.sh <current tag>`, submit one real audit and
+verify it succeeds with the openai model recorded, then delete the line
+and `deploy.sh <current tag>` again (performed 2026-08-13, 68 findings,
+correct reds).
+
 ## Tenants
 
 All tenant administration runs on the droplet:
