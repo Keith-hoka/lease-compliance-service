@@ -55,6 +55,27 @@ What the regression surfaced, all diagnosed per-case before fixing:
 - The NSW standard-form debt (gates unmeasured under the shipped 13ebabb
   prompt) is now measured and green.
 
+## Backup provider decision (2026-08-13)
+
+Failover backup: **openai:gpt-5.6-terra** ($2/$12 per MTok), eval-gated on
+the identical suite, goldens, and gates as the primary. Candidate sweep,
+owner-directed at each step:
+
+| Model | Result | Failure shape |
+|---|---|---|
+| gpt-5-mini ($0.25/$2) | FAIL | all 3 standard-form families on recall; probes showed document-wide substance crediting (a deleted term judged covered because other clauses carry its effect) |
+| gpt-5.6-luna ($0.20/$1.20) | FAIL | standard-form recall, 18 terms across the families, diffuse |
+| gpt-5.6-terra ($2/$12) | **PASS** | all 8 green (full run + F1/F2 focused on final goldens) |
+
+The standard-form family's 359 per-term judgments are the discriminating
+workload: both sub-Sonnet tiers passed prohibited/fields/PDF and failed
+only there. Terra's three residual pre-fix failures were golden
+content-overlap defects, not model errors - VIC F2 t5 restates the
+extension pair's 5-years-and-a-day rule, and both forms' date-of-agreement
+term is substantively supplied by the Signatures term's Dated lines - fixed
+by extending the sibling co-deletion clusters, after which both terra and
+the primary (freshness rerun) passed F1/F2 on the same documents.
+
 ## Excluded candidates
 
 - **claude-haiku-4-5** — no adaptive-thinking support (Models API
