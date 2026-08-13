@@ -216,7 +216,9 @@ Free layer (unit/integration, fake judges and mocked SDKs):
    the `+`-join.
 
 Paid layer (eval; gates unchanged and never lowered — pooled prohibited
-P>=0.9/R>=0.8, standard-form per-term at n=6, fields, PDF smokes):
+P>=0.9/R>=0.8, standard-form per-term recall at n=6 with family-pooled
+precision (amended 2026-08-13, owner decision — see
+tests/test_llm_eval.py::_assert_sf_thresholds), fields, PDF smokes):
 
 - **Anthropic regression run** after the hardening rewrite: any request-
   shape change is eval-gated, and this run also clears the standing

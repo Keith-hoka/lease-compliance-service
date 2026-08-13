@@ -206,3 +206,13 @@ async def test_run_once_records_actual_model(fake_judge, session_factory, seeded
     row = await _fetch(session_factory, job_id)
     assert row.status == "succeeded"
     assert row.model == "claude-sonnet-5"
+
+
+async def test_run_once_stores_long_model_join(fake_judge, session_factory, seeded_s19):
+    fake_judge.responses["ProhibitedOutput"] = RED
+    long_ref = "anthropic:claude-sonnet-4-5-20250929+openai:gpt-5.6-terra"
+    job_id = await _add(session_factory, _job())
+    await worker.run_once(_wrap(fake_judge, ref=long_ref), session_factory)
+    row = await _fetch(session_factory, job_id)
+    assert row.status == "succeeded"
+    assert row.model == long_ref

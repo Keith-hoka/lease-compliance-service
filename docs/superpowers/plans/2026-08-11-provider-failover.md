@@ -44,7 +44,9 @@ structured outputs), pytest.
 - Both providers share `SYSTEM`, instruction text, and output models
   verbatim.
 - Eval gates unchanged and never lowered: prohibited families pooled
-  P>=0.9/R>=0.8; standard-form per-term at n=6; fields; PDF smokes.
+  P>=0.9/R>=0.8; standard-form per-term recall at n=6 with family-pooled
+  precision (amended 2026-08-13, owner decision — see
+  tests/test_llm_eval.py::_assert_sf_thresholds); fields; PDF smokes.
 - Secrets: keys live in `.env` files only, never printed, never in shell
   history.
 - Tasks 6-8 are controller-run (eval discipline, production ops, secrets);
