@@ -928,9 +928,11 @@ def _sibling_clusters(terms: list) -> list[list]:
 
 
 _RELATED_GROUPS = [
-    {"vic.clause.sf_f2_t17", "vic.clause.sf_f2_t38"},
+    {"vic.clause.sf_f2_t5", "vic.clause.sf_f2_t17", "vic.clause.sf_f2_t38"},
     {"vic.clause.sf_f2_t18", "vic.clause.sf_f2_t39", "vic.clause.sf_f2_t40"},
     {"vic.clause.sf_f2_t33", "vic.clause.sf_f2_t15"},
+    {"vic.clause.sf_f2_t1", "vic.clause.sf_f2_t37"},
+    {"vic.clause.sf_f1_t1", "vic.clause.sf_f1_t32"},
 ]
 """Same-form-different-heading term families confirmed by diagnostic re-run
 to cross-match the same way as an identical-heading sibling pair. VIC Form
@@ -942,10 +944,13 @@ the increase-notice clause) restates "Rent adjustments" (T15) in simpler
 terms. None share a heading, so _sibling_clusters' adjacent-heading pass
 never merges them, but leaving one missing/altered while its relative sits
 untouched nearby let the judge credit the untouched relative's text against
-the seeded one on 6 of 6 diagnostic re-runs for T18 alone. VIC Form 1 has no
-equivalent split (its Modifications and Rent-increase terms are
-self-contained, with no separate Part F schedule restating them), so this
-list is empty for every other jurisdiction/form - _merge_related is then a
+the seeded one on 6 of 6 diagnostic re-runs for T18 alone. Extended
+2026-08-13 from backup-eval probes: "Length of the agreement" (F2 T5)
+restates the same 5-years-and-a-day rule as the extension pair, and both
+forms' "Date of agreement" (T1) is substantively supplied by the rendered
+Signatures term's "Dated ..." lines (F1 T32 / F2 T37) - judges credited
+the surviving relative in each case. NSW has no equivalent split, so this
+list stays empty there - _merge_related is then a
 no-op, confirmed by NSW and VIC F1 both passing unaffected."""
 
 
