@@ -84,9 +84,29 @@ _SYNTHETIC_BODY = {
 }
 
 
+_OPTION_RE = re.compile(r"\*?\[Option [^\]]*\]")
+
+
+def _choose_first_option(body: str) -> str:
+    """Render a choose-one options term the way a completed lease reads.
+
+    A prescribed term listing labelled alternatives ([Option 1-...],
+    [Option 2-...]) is a form-filling choice: a real agreement keeps only
+    the selected option. Rendering every alternative made the judge
+    (correctly) read the document as an invalidly completed form - the
+    residual instability behind VIC F2 t15's precision flips after the
+    slot-filler fix (owner decision 2026-08-13). Keep the preamble and the
+    first option's segment, drop the rest.
+    """
+    headers = list(_OPTION_RE.finditer(body))
+    if len(headers) < 2:
+        return body
+    return body[: headers[1].start()]
+
+
 def render_term(term) -> str:
     heading = _straighten(term.heading)
-    body = _straighten(_fill(term.body))
+    body = _straighten(_fill(_choose_first_option(term.body)))
     if not body.strip():
         # A rendered body left empty after filling is real table content the
         # corpus extraction cannot capture (VIC Form 1/2 term 6 "Rent" is a

@@ -88,14 +88,48 @@ def _assert_thresholds(stats: dict, thresholds: dict = THRESHOLDS) -> None:
     assert not failures, "; ".join(failures)
 
 
+def _assert_sf_thresholds(stats: dict) -> None:
+    """Per-term recall gates with family-pooled precision (owner, 2026-08-13).
+
+    Recall keeps the per-term n=6 design the owner sized in the (c)
+    milestone (5/6 tolerates one noisy miss). Precision pools across the
+    family: per-term green denominators (~7-12) carry zero noise budget,
+    and four hardening-regression runs showed single-FP failures hopping
+    between terms (F2 t2 -> t3, NSW t19 -> F2 t15) exactly like the
+    prohibited families' pre-pooling churn - deterministic golden defects
+    were fixed and stayed fixed, while the hops did not reproduce under
+    single-term probes. Thresholds unchanged: family P >= 0.9 pooled,
+    per-term R >= 0.8.
+    """
+    min_p, min_r = SF_DEFAULT_THRESHOLDS["default"]
+    failures = []
+    pooled_tp = pooled_fp = 0
+    print(f"\n{'rule':45} {'P':>6} {'R':>6} {'yellow':>7}")
+    for rule_id, counts in sorted(stats.items()):
+        tp, fp, misses, yellows = counts["tp"], counts["fp"], counts["miss"], counts["yellow"]
+        precision = tp / (tp + fp) if tp + fp else 1.0
+        recall = tp / (tp + misses) if tp + misses else 1.0
+        print(f"{rule_id:45} {precision:6.2f} {recall:6.2f} {yellows:7d}")
+        pooled_tp += tp
+        pooled_fp += fp
+        if recall < min_r:
+            failures.append(f"{rule_id} recall {recall:.2f} < {min_r}")
+    family_p = pooled_tp / (pooled_tp + pooled_fp) if pooled_tp + pooled_fp else 1.0
+    print(f"{'FAMILY precision (pooled)':45} {family_p:6.2f}")
+    if family_p < min_p:
+        failures.append(f"family precision {family_p:.2f} < {min_p}")
+    assert not failures, "; ".join(failures)
+
+
 def _assert_family_thresholds(stats: dict, min_p: float = 0.9, min_r: float = 0.8) -> None:
     """Owner decisions 2026-08-11: both prohibited families gate on pooled
     precision/recall across their rules, with the per-rule table retained
     for diagnosis. Evidence: VIC runs 16-22 rotated five distinct
     single-rule failure combinations, and NSW showed the same shape
     (utility_provider single-run FP, zero on full rescan) - per-rule
-    denominators of 3-9 cases sit inside model judgment noise. The three
-    standard-form families keep per-term gates (n=6, stable)."""
+    denominators of 3-9 cases sit inside model judgment noise. The
+    standard-form families use _assert_sf_thresholds (per-term recall,
+    pooled precision - owner, 2026-08-13)."""
     print(f"\n{'rule':45} {'P':>6} {'R':>6} {'yellow':>7}")
     pooled = {"tp": 0, "fp": 0, "miss": 0}
     for rule_id, counts in sorted(stats.items()):
@@ -219,14 +253,14 @@ async def test_standard_form_eval_nsw(eval_session):
     terms, _ = await fetch_form_terms(eval_session, "NSW", AS_AT_SF, None)
     docs = plan_documents(terms)
     stats = await _score_standard_form(eval_session, make_judge(), "NSW", None, docs)
-    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
+    _assert_sf_thresholds(stats)
 
 
 async def test_standard_form_eval_vic_f1(eval_session):
     terms, _ = await fetch_form_terms(eval_session, "VIC", AS_AT_SF, None)
     docs = plan_documents(terms)
     stats = await _score_standard_form(eval_session, make_judge(), "VIC", None, docs)
-    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
+    _assert_sf_thresholds(stats)
 
 
 async def test_standard_form_eval_vic_f2(eval_session):
@@ -234,7 +268,7 @@ async def test_standard_form_eval_vic_f2(eval_session):
     terms, _ = await fetch_form_terms(eval_session, "VIC", AS_AT_SF, lease)
     docs = plan_documents(terms)
     stats = await _score_standard_form(eval_session, make_judge(), "VIC", lease, docs)
-    _assert_thresholds(stats, SF_DEFAULT_THRESHOLDS)
+    _assert_sf_thresholds(stats)
 
 
 async def test_fields_golden(eval_session):
