@@ -1,15 +1,12 @@
 """Download the official rent workbooks by their published URL patterns."""
 
 import calendar
-import logging
 from datetime import date
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rent_stats.loader import load_nsw_file, load_vic_file
-
-logger = logging.getLogger("app.rent_stats")
 
 NSW_BASE = "https://www.nsw.gov.au/sites/default/files/noindex"
 VIC_BASE = "https://www.dffh.vic.gov.au"
@@ -49,12 +46,16 @@ def nsw_monthly_targets(today: date, since: date) -> list[tuple[str, str]]:
     return targets
 
 
-def latest_vic_quarter(today: date) -> tuple[int, int]:
-    """The most recent quarter-end that is at least ~5 months old (publication lag)."""
-    year, month = today.year, today.month - 5
-    while month <= 0:
-        year, month = year - 1, month + 12
-    return year, (month - 1) // 3 + 1
+def quarter_candidates(today: date) -> list[tuple[int, int]]:
+    """The 6 most recent completed VIC quarter-ends, newest first."""
+    year, quarter = today.year, (today.month - 1) // 3 + 1
+    candidates = []
+    for _ in range(6):
+        quarter -= 1
+        if quarter == 0:
+            year, quarter = year - 1, 4
+        candidates.append((year, quarter))
+    return candidates
 
 
 async def fetch(client: httpx.AsyncClient, url: str) -> bytes | None:
@@ -78,16 +79,22 @@ async def _load_nsw_targets(session, client, targets, summary):
 
 
 async def _load_vic(session, client, today, summary):
-    year, quarter = latest_vic_quarter(today)
-    url = vic_quarter_url(year, quarter)
-    data = await fetch(client, url)
-    if data is None:
-        summary["vic_missing"].append(url)
+    """Probe candidate quarters newest-first and load the first one published."""
+    candidates = quarter_candidates(today)
+    for year, quarter in candidates:
+        url = vic_quarter_url(year, quarter)
+        data = await fetch(client, url)
+        if data is None:
+            continue
+        result = await load_vic_file(
+            session, f"vic_moving_annual_{year}_q{quarter}.xlsx", data, url
+        )
+        await session.commit()
+        summary["vic_files"] += 0 if result.unchanged else 1
+        summary["vic_rows"] += result.loaded_rows
+        summary["vic_quarter"] = f"{year}-Q{quarter}"
         return
-    result = await load_vic_file(session, f"vic_moving_annual_{year}_q{quarter}.xlsx", data, url)
-    await session.commit()
-    summary["vic_files"] += 0 if result.unchanged else 1
-    summary["vic_rows"] += result.loaded_rows
+    summary["vic_missing"].append(vic_quarter_url(*candidates[0]))
 
 
 def _summary() -> dict:
@@ -98,6 +105,7 @@ def _summary() -> dict:
         "vic_files": 0,
         "vic_rows": 0,
         "vic_missing": [],
+        "vic_quarter": None,
     }
 
 

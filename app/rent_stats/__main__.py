@@ -8,7 +8,6 @@ import httpx
 
 from app.core.dates import sydney_today
 from app.core.db import async_session_factory
-from app.core.logs import configure_logging
 from app.rent_stats.fetcher import run_backfill, run_update
 
 
@@ -23,7 +22,6 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["backfill", "update"])
     args = parser.parse_args()
-    configure_logging()
     asyncio.run(run(args.command))
 
 
