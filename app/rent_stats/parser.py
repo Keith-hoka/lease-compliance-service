@@ -54,7 +54,11 @@ class VicStat:
 
 def parse_nsw_lodgements(data: bytes) -> NswParse:
     sheet = openpyxl.load_workbook(io.BytesIO(data), read_only=True).worksheets[0]
-    rows = sheet.iter_rows(values_only=True)
+    return _parse_nsw_rows(sheet.iter_rows(values_only=True))
+
+
+def _parse_nsw_rows(rows) -> NswParse:
+    """Two title rows, the pinned header, then data; short or blank rows are skipped."""
     next(rows), next(rows)
     header = tuple(next(rows)[:5])
     if header != NSW_HEADER:
@@ -62,9 +66,9 @@ def parse_nsw_lodgements(data: bytes) -> NswParse:
     parsed: list[Lodgement] = []
     skipped = unknown = 0
     for row in rows:
-        lodged, postcode, dwelling, bedrooms, rent = row[:5]
-        if lodged is None:
+        if len(row) < 5 or row[0] is None:
             continue
+        lodged, postcode, dwelling, bedrooms, rent = row[:5]
         try:
             beds = int(str(bedrooms))
             weekly = Decimal(str(rent))

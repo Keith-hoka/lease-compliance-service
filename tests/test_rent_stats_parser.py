@@ -66,3 +66,23 @@ def _bytes(wb) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def test_nsw_trailing_empty_rows_are_skipped():
+    """openpyxl yields () for trailing blank rows in some real annual files (2023)."""
+    from datetime import date
+
+    from app.rent_stats import parser
+
+    rows = iter(
+        [
+            (None,) * 5,
+            (None,) * 5,
+            parser.NSW_HEADER,
+            (date(2023, 3, 1), 2000, "F", "1", "600"),
+            (),
+            (None, None),
+        ]
+    )
+    parsed = parser._parse_nsw_rows(rows)
+    assert len(parsed.rows) == 1 and parsed.skipped_rows == 0
