@@ -20,8 +20,13 @@ rent data — actual agreed rents, not advertised asking rents:
   before external tenants rely on it — a rollout checklist item, not a
   build blocker).
 - **VIC** (Homes Victoria Rental Report, CC BY 4.0): quarterly XLSX of
-  moving-annual median weekly rents by suburb and by LGA, by property
-  type, with bond counts; latest quarter Sep 2025 at brainstorm time.
+  moving-annual median weekly rents by suburb, by property type, with
+  bond counts; latest quarter Sep 2025 at brainstorm time. Inspected: one
+  workbook carries the whole series (columns Mar 2000 .. latest quarter,
+  Count/Median pairs; seven sheets = 1/2/3-bedroom flat, 2/3/4-bedroom
+  house, All properties; rows = region + suburb, `-` for suppressed
+  cells, a `Group Total` row per region). So VIC needs no multi-file
+  backfill: loading the current workbook loads all history.
 
 This sub-project ingests both into the compliance service and exposes a
 tenant-facing query endpoint. It follows the legislation-monitor pattern:
@@ -58,8 +63,17 @@ that file's rows in one transaction.
 publishes medians only), `sample_size`, `source_url, fetched_at`.
 Unique on (jurisdiction, period, area_code, dwelling_type, bedrooms).
 
-Dwelling-type normalisation is a per-source mapping table in the parser
-(NSW and VIC use different labels); unmapped labels fail loud.
+Dwelling-type normalisation is a per-source mapping table in the parser.
+NSW codes (from the workbook's Definitions sheet): F -> unit, H ->
+house, T -> townhouse, O -> other, U -> other; any other value (the 2025
+annual file carries stray codes such as `1`) also maps to `other` and is
+counted in the ingest summary — the source is agent-entered free data,
+so unknown codes are data quality, not a format change. NSW rows whose
+bedrooms or weekly rent are `U`/non-numeric are skipped and counted.
+VIC sheet titles map to (dwelling_type, bedrooms): "N bedroom flat" ->
+(unit, N), "N bedroom house" -> (house, N), "All properties" -> (all,
+null). A missing expected sheet or header cell fails loud (format
+change).
 
 ## Ingest
 
