@@ -13,3 +13,4 @@ trap 'ssh -S "$SOCK" -O exit "$SERVER" 2>/dev/null || true' EXIT
 for jurisdiction in nsw vic; do
     uv run python -m app.monitor "$jurisdiction"
 done
+uv run python -m app.rent_stats update

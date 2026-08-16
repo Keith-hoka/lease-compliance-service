@@ -10,7 +10,15 @@ from app.rent_stats.loader import load_nsw_file, load_vic_file
 
 NSW_BASE = "https://www.nsw.gov.au/sites/default/files/noindex"
 VIC_BASE = "https://www.dffh.vic.gov.au"
-NSW_ANNUAL_YEARS = range(2021, 2026)
+# Historical annual files carry irregular folder and file names on the source
+# page, so they are pinned here rather than derived from a pattern.
+NSW_ANNUAL_PATHS = {
+    2021: "2023-11/Rental-bond-lodgements-year-2021.xlsx",
+    2022: "2023-11/RentalBond_Lodgements_Year_2022.xlsx",
+    2023: "2024-05/RentalBond_Lodgements_Year_2023.xlsx",
+    2024: "2025-01/rental-bond-lodgements-year-2024_1.xlsx",
+    2025: "2026-01/rentalbond_lodgements_year_2025.xlsx",
+}
 NSW_MONTHLY_SINCE = date(2026, 1, 1)
 _VIC_QUARTER_MONTH = {1: "march", 2: "june", 3: "september", 4: "december"}
 
@@ -26,7 +34,12 @@ def nsw_monthly_url(year: int, month: int) -> str:
 
 
 def nsw_annual_url(year: int) -> str:
-    return f"{NSW_BASE}/{year + 1}-01/rentalbond_lodgements_year_{year}.xlsx"
+    return f"{NSW_BASE}/{NSW_ANNUAL_PATHS[year]}"
+
+
+def nsw_annual_targets() -> list[tuple[str, str]]:
+    """(source_file, url) per pinned annual file; source_file is normalised per year."""
+    return [(f"rentalbond_lodgements_year_{y}.xlsx", nsw_annual_url(y)) for y in NSW_ANNUAL_PATHS]
 
 
 def vic_quarter_url(year: int, quarter: int) -> str:
@@ -111,8 +124,7 @@ def _summary() -> dict:
 
 async def run_backfill(session: AsyncSession, client: httpx.AsyncClient, today: date) -> dict:
     summary = _summary()
-    annual = [(f"rentalbond_lodgements_year_{y}.xlsx", nsw_annual_url(y)) for y in NSW_ANNUAL_YEARS]
-    await _load_nsw_targets(session, client, annual, summary)
+    await _load_nsw_targets(session, client, nsw_annual_targets(), summary)
     await _load_nsw_targets(session, client, nsw_monthly_targets(today, NSW_MONTHLY_SINCE), summary)
     await _load_vic(session, client, today, summary)
     return summary

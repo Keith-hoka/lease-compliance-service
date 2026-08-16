@@ -18,6 +18,17 @@ def test_nsw_urls_follow_the_published_patterns():
     )
 
 
+def test_nsw_annual_urls_are_the_published_irregular_paths():
+    """Historical annual files do not follow one pattern; the URLs are pinned from the source page."""
+    assert fetcher.nsw_annual_url(2021).endswith("/2023-11/Rental-bond-lodgements-year-2021.xlsx")
+    assert fetcher.nsw_annual_url(2022).endswith("/2023-11/RentalBond_Lodgements_Year_2022.xlsx")
+    assert fetcher.nsw_annual_url(2023).endswith("/2024-05/RentalBond_Lodgements_Year_2023.xlsx")
+    assert fetcher.nsw_annual_url(2024).endswith("/2025-01/rental-bond-lodgements-year-2024_1.xlsx")
+    assert [name for name, _ in fetcher.nsw_annual_targets()] == [
+        f"rentalbond_lodgements_year_{y}.xlsx" for y in range(2021, 2026)
+    ]
+
+
 def test_vic_url_follows_the_published_pattern():
     assert fetcher.vic_quarter_url(2025, 3) == (
         "https://www.dffh.vic.gov.au/moving-annual-rent-suburb-september-quarter-2025-excel"
