@@ -122,6 +122,36 @@ pkill -f "15433:127.0.0.1:5432"
 The daily monitor does the same through
 `deploy/launchd/monitor-remote.sh` (see `deploy/launchd/README.md`).
 
+## Rent statistics (runs on the Mac, never the server)
+
+`GET /v1/rent-statistics` serves official bond-derived rent data:
+
+- **NSW** - Fair Trading rental bond lodgements (per-lodgement detail;
+  monthly files by URL pattern from 2026-01, annual 2021-2025 files
+  pinned in `app/rent_stats/fetcher.py` because their paths are
+  irregular). Aggregated per postcode/dwelling/bedrooms with
+  `percentile_cont` into `rent_statistics`. The source page states no
+  licence text - confirm the terms of use before external tenants rely
+  on this endpoint.
+- **VIC** - Homes Victoria Rental Report, moving annual median rents by
+  suburb (CC BY 4.0). One workbook carries the whole series; the fetcher
+  probes newest-completed quarter backwards until a published one is
+  found.
+
+Same tunnel as the corpus (port 15433):
+
+```bash
+DATABASE_URL="postgresql+asyncpg://postgres:<db password>@localhost:15433/lease_compliance" \
+  uv run python -m app.rent_stats backfill   # all history, idempotent by file hash
+DATABASE_URL=... uv run python -m app.rent_stats update  # last 3 NSW months + current VIC quarter
+```
+
+The daily monitor runs `update` after the legislation monitors (port
+15434). Initial production backfill 2026-08-16: NSW 13 files, 1,776,225
+lodgements, 67 months 2021-01..2026-07 -> 406,109 statistics rows; VIC
+101,399 rows 2000-Q1..2025-Q3. Calls are recorded under the usage class
+`rent_statistics` (counted, no daily quota).
+
 ## Backups
 
 Nightly cron on the droplet (installed per the deployment plan Task 8):
