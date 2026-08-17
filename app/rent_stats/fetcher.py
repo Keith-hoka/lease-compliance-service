@@ -11,7 +11,9 @@ from app.rent_stats.loader import load_nsw_file, load_vic_file
 NSW_BASE = "https://www.nsw.gov.au/sites/default/files/noindex"
 VIC_BASE = "https://www.dffh.vic.gov.au"
 # Historical annual files carry irregular folder and file names on the source
-# page, so they are pinned here rather than derived from a pattern.
+# page, so they are pinned here rather than derived from a pattern. Invariant:
+# never add a year that NSW_MONTHLY_SINCE already covers with monthly files -
+# nsw_annual_targets() drops any such year, but the dict should stay clean.
 NSW_ANNUAL_PATHS = {
     2021: "2023-11/Rental-bond-lodgements-year-2021.xlsx",
     2022: "2023-11/RentalBond_Lodgements_Year_2022.xlsx",
@@ -38,8 +40,13 @@ def nsw_annual_url(year: int) -> str:
 
 
 def nsw_annual_targets() -> list[tuple[str, str]]:
-    """(source_file, url) per pinned annual file; source_file is normalised per year."""
-    return [(f"rentalbond_lodgements_year_{y}.xlsx", nsw_annual_url(y)) for y in NSW_ANNUAL_PATHS]
+    """(source_file, url) per pinned annual file; source_file is normalised per year.
+
+    Years at or past NSW_MONTHLY_SINCE are excluded even if pinned, so a stray
+    entry can never double-count months the monthly loader already covers.
+    """
+    years = [y for y in NSW_ANNUAL_PATHS if y < NSW_MONTHLY_SINCE.year]
+    return [(f"rentalbond_lodgements_year_{y}.xlsx", nsw_annual_url(y)) for y in years]
 
 
 def vic_quarter_url(year: int, quarter: int) -> str:
@@ -89,6 +96,8 @@ async def _load_nsw_targets(session, client, targets, summary):
         await session.commit()
         summary["nsw_files"] += 0 if result.unchanged else 1
         summary["nsw_rows"] += result.loaded_rows
+        summary["nsw_skipped_rows"] += result.skipped_rows
+        summary["nsw_unknown_dwelling"] += result.unknown_dwelling
 
 
 async def _load_vic(session, client, today, summary):
@@ -114,6 +123,8 @@ def _summary() -> dict:
     return {
         "nsw_files": 0,
         "nsw_rows": 0,
+        "nsw_skipped_rows": 0,
+        "nsw_unknown_dwelling": 0,
         "nsw_missing": [],
         "vic_files": 0,
         "vic_rows": 0,
@@ -136,7 +147,7 @@ async def run_update(session: AsyncSession, client: httpx.AsyncClient, today: da
     year, month = today.year, today.month
     for _ in range(3):
         year, month = (year - 1, 12) if month == 1 else (year, month - 1)
-    since = date(year, month, 1)
+    since = max(date(year, month, 1), NSW_MONTHLY_SINCE)
     await _load_nsw_targets(session, client, nsw_monthly_targets(today, since), summary)
     await _load_vic(session, client, today, summary)
     return summary

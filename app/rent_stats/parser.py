@@ -67,6 +67,8 @@ def _parse_nsw_rows(rows) -> NswParse:
     skipped = unknown = 0
     for row in rows:
         if len(row) < 5 or row[0] is None:
+            if any(value is not None for value in row):
+                skipped += 1
             continue
         lodged, postcode, dwelling, bedrooms, rent = row[:5]
         try:

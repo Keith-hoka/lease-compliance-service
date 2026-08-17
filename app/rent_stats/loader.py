@@ -22,8 +22,10 @@ class LoadResult:
     unchanged: bool
 
 
-async def _source_file(session, jurisdiction, source_file, data, source_url):
-    """Return (row, unchanged). A new hash replaces the row and its cascaded detail."""
+async def _find_source_file(session, jurisdiction, source_file, data):
+    """Return (existing_row_or_None, digest, unchanged). Never inserts or deletes -
+    callers that need to replace a changed file get the old row back to read its
+    detail before it is gone."""
     digest = hashlib.sha256(data).hexdigest()
     existing = (
         await session.execute(
@@ -33,8 +35,12 @@ async def _source_file(session, jurisdiction, source_file, data, source_url):
             )
         )
     ).scalar_one_or_none()
-    if existing is not None and existing.content_hash == digest:
-        return existing, True
+    unchanged = existing is not None and existing.content_hash == digest
+    return existing, digest, unchanged
+
+
+async def _replace_source_file(session, existing, jurisdiction, source_file, digest, source_url):
+    """Delete `existing` (cascading its detail rows) if given, then insert the new row."""
     if existing is not None:
         await session.delete(existing)
         await session.flush()
@@ -46,15 +52,29 @@ async def _source_file(session, jurisdiction, source_file, data, source_url):
     )
     session.add(row)
     await session.flush()
-    return row, False
+    return row
 
 
 async def load_nsw_file(
     session: AsyncSession, source_file: str, data: bytes, source_url: str
 ) -> LoadResult:
-    row, unchanged = await _source_file(session, "NSW", source_file, data, source_url)
+    existing, digest, unchanged = await _find_source_file(session, "NSW", source_file, data)
     if unchanged:
         return LoadResult(0, 0, 0, [], True)
+    old_periods: list[str] = []
+    if existing is not None:
+        old_periods = (
+            (
+                await session.execute(
+                    select(RentBondLodgement.period)
+                    .where(RentBondLodgement.source_file_id == existing.id)
+                    .distinct()
+                )
+            )
+            .scalars()
+            .all()
+        )
+    row = await _replace_source_file(session, existing, "NSW", source_file, digest, source_url)
     parsed = parse_nsw_lodgements(data)
     session.add_all(
         RentBondLodgement(
@@ -69,10 +89,10 @@ async def load_nsw_file(
         for r in parsed.rows
     )
     await session.flush()
-    periods = sorted({r.period for r in parsed.rows})
-    await aggregate_nsw(session, periods, source_url)
+    new_periods = sorted({r.period for r in parsed.rows})
+    await aggregate_nsw(session, sorted(set(old_periods) | set(new_periods)), source_url)
     return LoadResult(
-        len(parsed.rows), parsed.skipped_rows, parsed.unknown_dwelling, periods, False
+        len(parsed.rows), parsed.skipped_rows, parsed.unknown_dwelling, new_periods, False
     )
 
 
@@ -117,9 +137,10 @@ async def aggregate_nsw(session: AsyncSession, periods: list[str], source_url: s
 async def load_vic_file(
     session: AsyncSession, source_file: str, data: bytes, source_url: str
 ) -> LoadResult:
-    _row, unchanged = await _source_file(session, "VIC", source_file, data, source_url)
+    existing, digest, unchanged = await _find_source_file(session, "VIC", source_file, data)
     if unchanged:
         return LoadResult(0, 0, 0, [], True)
+    await _replace_source_file(session, existing, "VIC", source_file, digest, source_url)
     stats = parse_vic_moving_annual(data)
     periods = sorted({s.period for s in stats})
     await session.execute(

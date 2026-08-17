@@ -16,6 +16,8 @@ async def run(command: str) -> None:
         runner = run_backfill if command == "backfill" else run_update
         summary = await runner(session, client, sydney_today())
     print(json.dumps(summary))
+    if summary["vic_quarter"] is None:
+        raise SystemExit(1)
 
 
 def main() -> None:

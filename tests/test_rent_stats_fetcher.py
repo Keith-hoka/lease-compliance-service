@@ -29,6 +29,16 @@ def test_nsw_annual_urls_are_the_published_irregular_paths():
     ]
 
 
+def test_nsw_annual_targets_exclude_years_monthly_coverage_already_reaches(monkeypatch):
+    """A pinned annual year at or past NSW_MONTHLY_SINCE would double-count with the monthly loader."""
+    patched = dict(fetcher.NSW_ANNUAL_PATHS)
+    patched[2026] = "2027-01/rentalbond_lodgements_year_2026.xlsx"
+    monkeypatch.setattr(fetcher, "NSW_ANNUAL_PATHS", patched)
+    names = [name for name, _ in fetcher.nsw_annual_targets()]
+    assert "rentalbond_lodgements_year_2026.xlsx" not in names
+    assert names == [f"rentalbond_lodgements_year_{y}.xlsx" for y in range(2021, 2026)]
+
+
 def test_vic_url_follows_the_published_pattern():
     assert fetcher.vic_quarter_url(2025, 3) == (
         "https://www.dffh.vic.gov.au/moving-annual-rent-suburb-september-quarter-2025-excel"
@@ -105,6 +115,32 @@ async def test_load_vic_probes_back_to_the_newest_published_quarter(monkeypatch)
         and summary["vic_rows"] == 3
     )
     assert len(seen) == 4  # 2026-Q2, 2026-Q1, 2025-Q4 missed, 2025-Q3 hit
+
+
+async def test_load_nsw_targets_accumulates_skip_and_unknown_counters(monkeypatch):
+    from app.rent_stats.loader import LoadResult
+
+    async def fake_load(session, source_file, data, source_url):
+        return LoadResult(
+            loaded_rows=5, skipped_rows=2, unknown_dwelling=1, periods=["2026-07"], unchanged=False
+        )
+
+    class Session:
+        async def commit(self):
+            pass
+
+    def handler(request):
+        return httpx.Response(200, content=b"workbook")
+
+    monkeypatch.setattr(fetcher, "load_nsw_file", fake_load)
+    summary = fetcher._summary()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await fetcher._load_nsw_targets(
+            Session(), client, [("a.xlsx", "https://example.test/a.xlsx")], summary
+        )
+    assert summary["nsw_rows"] == 5
+    assert summary["nsw_skipped_rows"] == 2
+    assert summary["nsw_unknown_dwelling"] == 1
 
 
 async def test_load_vic_records_missing_when_nothing_published():

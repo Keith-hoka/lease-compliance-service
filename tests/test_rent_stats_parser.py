@@ -80,9 +80,10 @@ def test_nsw_trailing_empty_rows_are_skipped():
             (None,) * 5,
             parser.NSW_HEADER,
             (date(2023, 3, 1), 2000, "F", "1", "600"),
+            (None, 2000, "F", "1", "600"),
             (),
             (None, None),
         ]
     )
     parsed = parser._parse_nsw_rows(rows)
-    assert len(parsed.rows) == 1 and parsed.skipped_rows == 0
+    assert len(parsed.rows) == 1 and parsed.skipped_rows == 1

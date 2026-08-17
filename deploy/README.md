@@ -130,13 +130,31 @@ The daily monitor does the same through
   monthly files by URL pattern from 2026-01, annual 2021-2025 files
   pinned in `app/rent_stats/fetcher.py` because their paths are
   irregular). Aggregated per postcode/dwelling/bedrooms with
-  `percentile_cont` into `rent_statistics`. The source page states no
-  licence text - confirm the terms of use before external tenants rely
-  on this endpoint.
+  `percentile_cont` into `rent_statistics`. Invariant: the pinned annual
+  years and the monthly coverage never overlap - `nsw_annual_targets()`
+  drops any year from `NSW_MONTHLY_SINCE.year` onward, so an annual file
+  can never double-count months the monthly loader also covers. The
+  source page states no licence text - confirm the terms of use before
+  external tenants rely on this endpoint.
 - **VIC** - Homes Victoria Rental Report, moving annual median rents by
   suburb (CC BY 4.0). One workbook carries the whole series; the fetcher
   probes newest-completed quarter backwards until a published one is
-  found.
+  found. Any UI built on this data must surface the CC BY 4.0
+  attribution.
+
+Dwelling-type/bedrooms coverage differs by jurisdiction. NSW serves
+every `(dwelling_type, bedrooms)` combination present in the lodgements,
+plus the `(dwelling_type, NULL)` rollup per type and the `('all', NULL)`
+rollup across all types. VIC serves only the cells the published
+workbook carries: `unit` at 1/2/3 bedrooms, `house` at 2/3/4 bedrooms,
+and `all` at `NULL` bedrooms - there is no VIC `(type, NULL)` rollup, so
+a query for a specific VIC dwelling type with `bedrooms` omitted (which
+filters on `bedrooms IS NULL`) returns an empty series by design, not an
+error.
+
+Wire format: `median`/`p25`/`p75` serialise as JSON strings with two
+decimals (e.g. `"760.00"`) - the `Numeric(10, 2)` column scale, no
+custom serializer involved.
 
 Same tunnel as the corpus (port 15433):
 

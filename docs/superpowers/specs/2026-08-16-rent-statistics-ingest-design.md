@@ -79,11 +79,12 @@ change).
 
 - `app/rent_stats/fetcher.py`: NSW — enumerate the annual files and the
   monthly URL pattern from 2026-01 to the current month, download those
-  not already loaded (by content_hash); VIC — download the current
-  quarterly suburb and LGA workbooks (the DFFH page lists them; the
-  fetcher pins the known URL for the latest quarter and the historical
-  files listed on the past-reports page). httpx, same client shape as
-  `fetcher_vic`.
+  not already loaded (by content_hash); VIC — download only the suburb
+  workbook for the newest completed quarter, discovered by probing
+  candidate quarters backwards until one is published. The LGA workbook
+  is not ingested: `area_code` carries no area-type dimension, so LGA
+  and suburb names could collide on the `rent_statistics` unique key.
+  httpx, same client shape as `fetcher_vic`.
 - `app/rent_stats/parser.py`: openpyxl (new dependency, `uv add
   openpyxl`); one sheet-to-record mapper per source. Header rows are
   pinned per source; a header mismatch raises before any row is loaded
