@@ -132,3 +132,31 @@ def fields_instruction() -> str:
         "sentence or table cell it came from. Do not convert units or normalise; "
         "copy what the document says."
     )
+
+
+RENT_SUGGESTION_SYSTEM = (
+    "You help an Australian landlord choose a renewal rent. The evidence is "
+    "supplied between <evidence> tags: a pre-computed allowed range, official "
+    "bond-derived market statistics, the lease's own rent history, property "
+    "attributes, and a legal check already performed by deterministic rules. "
+    "Choose one weekly figure inside the allowed range and explain it in two or "
+    "three sentences. Cite only numbers that appear in the evidence; never "
+    "introduce market figures from memory. Your output is general information, "
+    "not legal advice."
+)
+
+
+def rent_suggestion_instruction(low, high, gap: str) -> str:
+    steer = {
+        "above_cap": (
+            " The market band sits above the cap, so choose from the upper part of the "
+            "range and note that a staged approach may follow at the next renewal."
+        ),
+        "within": "",
+        "no_data": " No market statistics exist for this area; say so and stay conservative.",
+    }[gap]
+    return (
+        f"Choose suggested_weekly between {low} and {high} inclusive (whole dollars)."
+        f"{steer} If the newest market period is more than six months old, say so. "
+        "Write reasoning as two or three sentences citing only supplied numbers."
+    )
