@@ -126,3 +126,15 @@ async def test_suggest_calls_the_judge_with_evidence_and_records_model():
     assert result.suggested_weekly == Decimal(720) and result.model == "claude-sonnet-5"
     assert isinstance(seen["doc"], DocumentInput) and seen["doc"].kind == "text"
     assert "760" in seen["doc"].text and "698" in seen["instruction"]
+
+
+async def test_suggest_quantizes_the_judged_suggestion_to_whole_dollars():
+    async def fake(doc, instruction, output_model):
+        return output_model.model_validate(
+            {"suggested_weekly": "720.40", "reasoning": "Market analysis."}
+        )
+
+    judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
+    live = Anchor(Decimal(600), Decimal(698), Decimal(748), "within", CELL)
+    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
+    assert result.suggested_weekly == Decimal(720)

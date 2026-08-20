@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, create_model
 from app.clause_audit.document import DocumentInput
 from app.llm.failover import FailoverJudge
 from app.llm.prompts import RENT_SUGGESTION_SYSTEM, rent_suggestion_instruction
-from app.rent_suggest.anchor import Anchor
+from app.rent_suggest.anchor import Anchor, dollars
 from app.rent_suggest.law import LawCard
 from app.schemas.lease import LeaseInput
 
@@ -120,4 +120,6 @@ async def suggest(
         suggestion_output_model(anchor.low, anchor.high),
     )
     used = judge.drain_models_used()
-    return Suggestion(output.suggested_weekly, output.reasoning, used[-1] if used else None)
+    return Suggestion(
+        dollars(output.suggested_weekly), output.reasoning, used[-1] if used else None
+    )
