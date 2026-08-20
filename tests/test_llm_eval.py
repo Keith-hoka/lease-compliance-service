@@ -8,6 +8,7 @@ import tempfile
 import time
 from collections import defaultdict
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import asyncpg
@@ -305,3 +306,66 @@ async def test_pdf_smoke_scanned(eval_session):
     findings = await run_prohibited(make_judge(), eval_session, doc, AS_AT, PROHIBITED_RULES)
     carpet = next(f for f in findings if f.rule_id == "nsw.clause.carpet_cleaning")
     assert carpet.verdict == "red"
+
+
+async def test_rent_suggestions_eval(eval_session):
+    from app.rent_suggest.judge import HOLD_REASON_BELOW, HOLD_REASON_BLOCKED, evidence_numbers
+    from tests.golden.rent_suggestions import RS_GATE, SCENARIOS, money_figures
+
+    passed = 0
+    for scenario in SCENARIOS:
+        response, anchored, law = await _run_scenario(eval_session, scenario)
+        ok = anchored.low <= response.suggested_weekly <= anchored.high
+        if response.model is not None:
+            allowed = evidence_numbers(anchored, scenario.lease, law)
+            cited = money_figures(response.reasoning) - {Decimal(y) for y in range(2000, 2100)}
+            ok = ok and cited <= allowed
+            if scenario.expected_gap == "above_cap":
+                ok = ok and response.suggested_weekly >= (anchored.low + anchored.high) / 2
+        else:
+            ok = ok and response.reasoning in (HOLD_REASON_BLOCKED, HOLD_REASON_BELOW)
+        print(
+            f"{scenario.name:40} {'PASS' if ok else 'FAIL'} {response.suggested_weekly} {response.reasoning[:80]}"
+        )
+        passed += ok
+    rate = passed / len(SCENARIOS)
+    print(f"rent suggestions: {passed}/{len(SCENARIOS)} = {rate:.2f}")
+    assert rate >= RS_GATE
+
+
+async def _run_scenario(session, scenario):
+    from app.rent_suggest.anchor import anchor, market_cell
+    from app.rent_suggest.law import law_card
+    from app.rent_suggest.service import build_suggestion
+    from app.rules.base import to_weekly_rent
+    from app.schemas.rent_suggestions import RentSuggestionRequest
+
+    session.add_all(scenario.market_rows)
+    await session.flush()
+    request = RentSuggestionRequest(
+        jurisdiction=scenario.jurisdiction,
+        as_at=scenario.as_at,
+        property=scenario.property,
+        lease=scenario.lease,
+        renewal_start=scenario.renewal_start,
+    )
+    current = to_weekly_rent(scenario.lease.rent_amount, scenario.lease.rent_frequency)
+    cell = await market_cell(
+        session,
+        scenario.jurisdiction,
+        scenario.property.area_key,
+        scenario.property.dwelling_type,
+        scenario.property.bedrooms,
+    )
+    anchored = anchor(current, scenario.jurisdiction, cell)
+    law = await law_card(
+        session,
+        scenario.jurisdiction,
+        scenario.as_at,
+        scenario.lease,
+        scenario.renewal_start,
+        (anchored.low + anchored.high) / 2,
+    )
+    response = await build_suggestion(session, request)
+    await session.rollback()
+    return response, anchored, law
