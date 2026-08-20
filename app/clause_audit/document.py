@@ -14,6 +14,7 @@ class DocumentInput:
     kind: Literal["text", "pdf"]
     text: str | None = None
     pdf: bytes | None = None
+    system: str | None = None
 
 
 def extract_pdf_text(data: bytes) -> tuple[str, int]:

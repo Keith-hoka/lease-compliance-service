@@ -42,7 +42,7 @@ def build_response_kwargs(
 ) -> dict:
     return {
         "model": model,
-        "instructions": SYSTEM,
+        "instructions": doc.system or SYSTEM,
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "reasoning": {"effort": REASONING_EFFORT},
         "input": [

@@ -11,6 +11,7 @@ from anthropic import RateLimitError as AnthropicRateLimitError
 from app.clause_audit.document import DocumentInput
 from app.llm.client import parse_model_ref
 from app.llm.failover import JudgeError, ProviderDown
+from app.llm.prompts import SYSTEM
 from app.llm.providers import anthropic as anthropic_provider
 from app.llm.schemas import FieldsOutput
 
@@ -96,6 +97,14 @@ def test_anthropic_create_kwargs_use_output_config():
     content = kwargs["messages"][0]["content"]
     assert content[0]["cache_control"] == {"type": "ephemeral"}
     assert content[1] == {"type": "text", "text": "judge these rules"}
+
+
+def test_anthropic_uses_document_system_prompt_when_given():
+    doc = DocumentInput(kind="text", text="lease body", system="You are a rent adviser.")
+    kwargs = anthropic_provider.build_create_kwargs("claude-sonnet-5", doc, "i", FieldsOutput)
+    assert kwargs["system"] == "You are a rent adviser."
+    default = anthropic_provider.build_create_kwargs("claude-sonnet-5", DOC, "i", FieldsOutput)
+    assert default["system"] == SYSTEM
 
 
 async def test_anthropic_judge_parses_last_text_block(monkeypatch):
@@ -234,6 +243,12 @@ def test_openai_response_kwargs_shape():
         "text": "<lease_document>\nlease body\n</lease_document>",
     }
     assert content[1] == {"type": "input_text", "text": "judge these rules"}
+
+
+def test_openai_uses_document_system_prompt_when_given():
+    doc = DocumentInput(kind="text", text="lease body", system="You are a rent adviser.")
+    kwargs = openai_provider.build_response_kwargs("gpt-5.6-terra", doc, "i", FieldsOutput)
+    assert kwargs["instructions"] == "You are a rent adviser."
 
 
 def test_openai_pdf_document_part_is_base64_file():

@@ -59,7 +59,9 @@ def test_output_model_bounds_the_suggestion():
 
 
 def test_evidence_block_carries_numbers_and_no_tenant_fields():
-    text = evidence_block(ANCHOR, "NSW", LEASE, LAW, "unit, 2 bedrooms, postcode 2000")
+    text = evidence_block(
+        ANCHOR, "NSW", LEASE, LAW, "unit, 2 bedrooms, postcode 2000", date(2026, 8, 17)
+    )
     for token in (
         "698",
         "748",
@@ -72,6 +74,7 @@ def test_evidence_block_carries_numbers_and_no_tenant_fields():
     ):
         assert token in text
     assert "tenant" not in text.lower() or "tenancy" in text.lower()
+    assert "As at: 2026-08-17" in text
 
 
 def test_evidence_numbers_collects_every_money_figure():
@@ -102,7 +105,7 @@ async def test_suggest_skips_the_model_when_range_is_degenerate():
     judge = FailoverJudge(primary=never, primary_ref="claude-sonnet-5")
     held = Anchor(Decimal(600), Decimal(600), Decimal(600), "within", CELL)
     blocked = LawCard(findings=[], blocked=True)
-    result = await suggest(judge, held, "NSW", LEASE, blocked, "unit")
+    result = await suggest(judge, held, "NSW", LEASE, blocked, "unit", date(2026, 8, 17))
     assert result.suggested_weekly == Decimal(600) and result.model is None
     assert result.reasoning == HOLD_REASON_BLOCKED and calls == []
 
@@ -119,7 +122,7 @@ async def test_suggest_calls_the_judge_with_evidence_and_records_model():
 
     judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
     live = Anchor(Decimal(600), Decimal(698), Decimal(748), "within", CELL)
-    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit")
+    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
     assert result.suggested_weekly == Decimal(720) and result.model == "claude-sonnet-5"
     assert isinstance(seen["doc"], DocumentInput) and seen["doc"].kind == "text"
     assert "760" in seen["doc"].text and "698" in seen["instruction"]

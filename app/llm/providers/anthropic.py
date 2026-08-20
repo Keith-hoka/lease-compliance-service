@@ -50,7 +50,7 @@ def build_create_kwargs(
         "model": model,
         "max_tokens": MAX_TOKENS,
         "thinking": {"type": "adaptive"},
-        "system": SYSTEM,
+        "system": doc.system or SYSTEM,
         "messages": [
             {
                 "role": "user",

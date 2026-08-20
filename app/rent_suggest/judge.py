@@ -1,13 +1,14 @@
 """One judge call that picks a figure inside a pre-computed range and explains it."""
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, create_model
 
 from app.clause_audit.document import DocumentInput
 from app.llm.failover import FailoverJudge
-from app.llm.prompts import rent_suggestion_instruction
+from app.llm.prompts import RENT_SUGGESTION_SYSTEM, rent_suggestion_instruction
 from app.rent_suggest.anchor import Anchor
 from app.rent_suggest.law import LawCard
 from app.schemas.lease import LeaseInput
@@ -65,10 +66,16 @@ def _history_lines(lease: LeaseInput) -> list[str]:
 
 
 def evidence_block(
-    anchor: Anchor, jurisdiction: str, lease: LeaseInput, law: LawCard, property_desc: str
+    anchor: Anchor,
+    jurisdiction: str,
+    lease: LeaseInput,
+    law: LawCard,
+    property_desc: str,
+    as_at: date,
 ) -> str:
     parts = [
         "<evidence>",
+        f"As at: {as_at.isoformat()}",
         f"Property: {property_desc} ({jurisdiction}).",
         f"Current weekly rent: {anchor.current_weekly}.",
         f"Allowed range: {anchor.low} to {anchor.high} weekly; market gap: {anchor.gap}.",
@@ -97,12 +104,15 @@ async def suggest(
     lease: LeaseInput,
     law: LawCard,
     property_desc: str,
+    as_at: date,
 ) -> Suggestion:
     if anchor.low == anchor.high:
         reason = HOLD_REASON_BLOCKED if law.blocked else HOLD_REASON_BELOW
         return Suggestion(anchor.current_weekly, reason, None)
     doc = DocumentInput(
-        kind="text", text=evidence_block(anchor, jurisdiction, lease, law, property_desc)
+        kind="text",
+        text=evidence_block(anchor, jurisdiction, lease, law, property_desc, as_at),
+        system=RENT_SUGGESTION_SYSTEM,
     )
     output = await judge(
         doc,

@@ -20,6 +20,7 @@ from app.routers.changes import router as changes_router
 from app.routers.clause_audits import router as clause_audits_router
 from app.routers.legislation import router as legislation_router
 from app.routers.rent_statistics import router as rent_statistics_router
+from app.routers.rent_suggestions import router as rent_suggestions_router
 from app.tenants import import_env_keys
 
 
@@ -55,6 +56,7 @@ app.include_router(changes_router)
 app.include_router(clause_audits_router)
 app.include_router(legislation_router)
 app.include_router(rent_statistics_router)
+app.include_router(rent_suggestions_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
