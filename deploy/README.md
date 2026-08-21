@@ -170,6 +170,32 @@ lodgements, 67 months 2021-01..2026-07 -> 406,109 statistics rows; VIC
 101,399 rows 2000-Q1..2025-Q3. Calls are recorded under the usage class
 `rent_statistics` (counted, no daily quota).
 
+## Rent suggestions
+
+`POST /v1/rent-suggestions` is the service's first synchronous LLM
+endpoint: a deterministic range (market band from `rent_statistics`
+intersected with the 15% cap band) plus a hypothetical audit through the
+existing rent-increase rules, then one judge call that picks a figure
+inside the range and writes the reasoning. The judge is skipped when the
+range is degenerate (law-blocked or market below current rent), so those
+calls cost nothing. Calls are recorded under the usage class
+`rent_suggestions`.
+
+- The judge goes through the same provider failover as clause audits, but
+  `make_judge()` is constructed per request, so the circuit breaker state
+  is per request rather than shared with the worker - a primary outage
+  costs each request up to three failed attempts before its own backup
+  switch. Judge failure (after failover) returns HTTP 502
+  `{"detail": {"code": "judge_unavailable"}}`.
+- Provider wire schemas strip `minimum`/`maximum`/`pattern` keywords
+  (Anthropic rejects them); the range bound is enforced when the reply is
+  parsed against the pydantic model, so an out-of-range figure becomes a
+  502, never a response.
+- Any UI showing a VIC result must render the Homes Victoria CC BY 4.0
+  attribution; the response's `market.source.licence` carries the string
+  to key on.
+- `docs/model-evals.md` records the eval gate for both models.
+
 ## Backups
 
 Nightly cron on the droplet (installed per the deployment plan Task 8):

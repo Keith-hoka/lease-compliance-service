@@ -76,6 +76,45 @@ term is substantively supplied by the Signatures term's Dated lines - fixed
 by extending the sibling co-deletion clusters, after which both terra and
 the primary (freshness rerun) passed F1/F2 on the same documents.
 
+## Rent suggestions (2026-08-21, engine 1.6.0)
+
+`POST /v1/rent-suggestions` is gated by `test_rent_suggestions_eval`
+(`-m llm_eval -k rent_suggestions`): 19 golden scenarios seeded from the
+rent-statistics fixtures, each asserting the chosen figure is inside the
+deterministic range, every numeral in the reasoning appears in the
+evidence the prompt supplied (plus the model's own chosen figure),
+`above_cap` picks the upper half, and degenerate ranges return the hold
+template without a model call. Gate: all-properties pass rate >= 0.9,
+both the primary and the failover backup, same code.
+
+| Model | Result | Commit |
+|---|---|---|
+| claude-sonnet-5 (primary) | **19/19 = 1.00** | 1b75cdb |
+| openai:gpt-5.6-terra (backup) | **19/19 = 1.00** | 1b75cdb |
+
+What the runs found on the way, all fixed without touching the gate:
+
+- The plan's "schema makes an out-of-range figure impossible" mechanism
+  does not survive the wire: Anthropic's structured-output schema rejects
+  `minimum`/`maximum` on numbers and pydantic's Decimal `pattern` (a
+  lookahead). `strict_schema` now strips those keywords; the bound is
+  enforced when the reply is parsed against the original pydantic model
+  (out of range -> `JudgeError` -> 502). Clause-audit wire schemas are
+  byte-identical before and after.
+- Sonnet 0.32 -> 0.79 -> 1.00 was harness precision, not model quality:
+  the evidence block itself supplies `period 2026-07`, `n=150`, `2
+  bedrooms`, which the money regex fragmented into "unsupplied" figures,
+  and the model names its own chosen figure in the reasoning. The allowed
+  set is now the numerals of the exact evidence text sent plus the
+  suggestion; a fabricated median still fails (verified).
+- Terra 0.84 -> 1.00 was a real instruction miss: it cited derived
+  increase amounts ($20, $30 = suggestion minus current). The instruction
+  now says not to compute differences or percentages; sonnet reran green
+  on the same wording.
+
+Known soft spot (banked, pre-existing): the year exclusion `{2000..2099}`
+would also mask a hallucinated four-digit figure in that range.
+
 ## Excluded candidates
 
 - **claude-haiku-4-5** — no adaptive-thinking support (Models API
