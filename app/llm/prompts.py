@@ -158,5 +158,7 @@ def rent_suggestion_instruction(low, high, gap: str) -> str:
     return (
         f"Choose suggested_weekly between {low} and {high} inclusive (whole dollars)."
         f"{steer} If the newest market period is more than six months old, say so. "
-        "Write reasoning as two or three sentences citing only supplied numbers."
+        "Write reasoning as two or three sentences citing only supplied numbers. "
+        "Do not compute new figures such as differences or percentages; describe a "
+        "change by naming the supplied current rent and your chosen figure."
     )
