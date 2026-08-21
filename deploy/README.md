@@ -177,7 +177,8 @@ endpoint: a deterministic range (market band from `rent_statistics`
 intersected with the 15% cap band) plus a hypothetical audit through the
 existing rent-increase rules, then one judge call that picks a figure
 inside the range and writes the reasoning. The judge is skipped when the
-range is degenerate (law-blocked or market below current rent), so those
+range is degenerate (law-blocked, market below current rent, or the
+market band meeting the cap at a single figure), so those
 calls cost nothing. Calls are recorded under the usage class
 `rent_suggestions`.
 
