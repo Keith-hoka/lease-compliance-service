@@ -78,10 +78,15 @@ def strict_schema(model: type[BaseModel]) -> dict:
     mode additionally rejects optional properties and default annotations.
     Optional fields stay nullable through their anyOf, so the model emits an
     explicit null instead of omitting the key.
+
+    Also strips unsupported constraint keywords (numeric bounds, regex patterns)
+    which Anthropic's structured-output API rejects, since parse-time validation
+    in the pydantic model preserves the constraints.
     """
     schema = model.model_json_schema()
     for node in (schema, *schema.get("$defs", {}).values()):
         _close(node)
+    _strip_unsupported_constraints(schema)
     return schema
 
 
@@ -92,3 +97,28 @@ def _close(node: dict) -> None:
     node["required"] = list(node["properties"])
     for prop in node["properties"].values():
         prop.pop("default", None)
+
+
+def _strip_unsupported_constraints(obj: dict | list | None) -> None:
+    """Recursively remove constraint keywords unsupported by provider APIs.
+
+    Removes numeric bounds (minimum, maximum, exclusiveMinimum, exclusiveMaximum)
+    and regex patterns which Anthropic's structured-output API rejects. The
+    pydantic model retains these for parse-time validation.
+    """
+    if obj is None:
+        return
+    if isinstance(obj, dict):
+        for key in (
+            "minimum",
+            "maximum",
+            "exclusiveMinimum",
+            "exclusiveMaximum",
+            "pattern",
+        ):
+            obj.pop(key, None)
+        for value in obj.values():
+            _strip_unsupported_constraints(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            _strip_unsupported_constraints(item)

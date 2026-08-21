@@ -1,5 +1,5 @@
 import pytest
-from pydantic import ValidationError
+from pydantic import Field, ValidationError, create_model
 
 from app.rules.base import Finding
 from app.schemas.clause_audit import ClauseAuditCreate, ClauseFinding, ClauseLeaseInput
@@ -70,3 +70,47 @@ def test_strict_schema_output_still_validates_nullable_fields():
         }
     )
     assert parsed.items[0].clause_quote is None
+
+
+def test_strict_schema_strips_unsupported_constraints():
+    from decimal import Decimal
+
+    from app.llm.schemas import strict_schema
+
+    # Mimic the rent suggestion output model which uses Field(ge=..., le=...)
+    # Decimal emits both numeric bounds AND regex patterns in anyOf branches
+    model = create_model(
+        "TestOutput",
+        amount=(Decimal, Field(ge=Decimal(700), le=Decimal(748))),
+        reasoning=(str, ...),
+    )
+
+    schema = strict_schema(model)
+
+    # Recursively check that no unsupported constraint keywords exist anywhere
+    def has_unsupported_constraints(obj):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if key in (
+                    "minimum",
+                    "maximum",
+                    "exclusiveMinimum",
+                    "exclusiveMaximum",
+                    "pattern",
+                ):
+                    return True
+                if has_unsupported_constraints(value):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if has_unsupported_constraints(item):
+                    return True
+        return False
+
+    assert not has_unsupported_constraints(schema), (
+        f"Found unsupported constraints in schema: {schema}"
+    )
+
+    # Verify the field is still present and required
+    assert "amount" in schema["properties"]
+    assert "amount" in schema["required"]
