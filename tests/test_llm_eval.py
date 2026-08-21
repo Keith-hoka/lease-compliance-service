@@ -312,13 +312,25 @@ async def test_rent_suggestions_eval(eval_session):
     from app.rent_suggest.judge import HOLD_REASON_BELOW, HOLD_REASON_BLOCKED, evidence_numbers
     from tests.golden.rent_suggestions import RS_GATE, SCENARIOS, money_figures
 
+    years = {Decimal(y) for y in range(2000, 2100)}
     passed = 0
     for scenario in SCENARIOS:
-        response, anchored, law = await _run_scenario(eval_session, scenario)
+        response, anchored, law, evidence_text = await _run_scenario(eval_session, scenario)
+        cited = allowed = None
         ok = anchored.low <= response.suggested_weekly <= anchored.high
         if response.model is not None:
-            allowed = evidence_numbers(anchored, scenario.lease, law)
-            cited = money_figures(response.reasoning) - {Decimal(y) for y in range(2000, 2100)}
+            # Anything the model may correctly cite: the structured figures,
+            # every numeral actually printed in the evidence text (e.g.
+            # "period 2026-07", "n=150"), and the figure it just chose - the
+            # reasoning explaining that figure necessarily names it, and by
+            # construction a freshly chosen number is never itself part of
+            # the supplied evidence.
+            allowed = (
+                evidence_numbers(anchored, scenario.lease, law)
+                | money_figures(evidence_text)
+                | {response.suggested_weekly}
+            )
+            cited = money_figures(response.reasoning) - years
             ok = ok and cited <= allowed
             if scenario.expected_gap == "above_cap":
                 ok = ok and response.suggested_weekly >= (anchored.low + anchored.high) / 2
@@ -327,6 +339,26 @@ async def test_rent_suggestions_eval(eval_session):
         print(
             f"{scenario.name:40} {'PASS' if ok else 'FAIL'} {response.suggested_weekly} {response.reasoning[:80]}"
         )
+        if not ok:
+            reasons = []
+            if not (anchored.low <= response.suggested_weekly <= anchored.high):
+                reasons.append("range")
+            if response.model is not None:
+                if not (cited <= allowed):
+                    reasons.append(f"citation: cited - allowed = {cited - allowed}")
+                if scenario.expected_gap == "above_cap" and not (
+                    response.suggested_weekly >= (anchored.low + anchored.high) / 2
+                ):
+                    reasons.append("above_cap direction")
+            elif response.reasoning not in (HOLD_REASON_BLOCKED, HOLD_REASON_BELOW):
+                reasons.append("hold template")
+            print(f"  failed property: {', '.join(reasons)}")
+        if response.model is not None:
+            legacy_extra = (money_figures(response.reasoning) - years) - evidence_numbers(
+                anchored, scenario.lease, law
+            )
+            if legacy_extra:
+                print(f"  numerals outside structured set: {legacy_extra}")
         passed += ok
     rate = passed / len(SCENARIOS)
     print(f"rent suggestions: {passed}/{len(SCENARIOS)} = {rate:.2f}")
@@ -335,8 +367,9 @@ async def test_rent_suggestions_eval(eval_session):
 
 async def _run_scenario(session, scenario):
     from app.rent_suggest.anchor import anchor, market_cell
+    from app.rent_suggest.judge import evidence_block
     from app.rent_suggest.law import law_card
-    from app.rent_suggest.service import build_suggestion
+    from app.rent_suggest.service import _property_desc, build_suggestion
     from app.rules.base import to_weekly_rent
     from app.schemas.rent_suggestions import RentSuggestionRequest
 
@@ -366,6 +399,19 @@ async def _run_scenario(session, scenario):
         scenario.renewal_start,
         (anchored.low + anchored.high) / 2,
     )
+    # Byte-identical to what the service hands the model: pre-collapse
+    # anchor/law, which for the LLM-path scenarios is exactly what
+    # build_suggestion sent, since the service only collapses anchored when
+    # law.blocked - and that collapse forces low == high, which routes to
+    # the hold template instead of a model call.
+    evidence_text = evidence_block(
+        anchored,
+        scenario.jurisdiction,
+        scenario.lease,
+        law,
+        _property_desc(request),
+        scenario.as_at,
+    )
     response = await build_suggestion(session, request)
     await session.rollback()
-    return response, anchored, law
+    return response, anchored, law, evidence_text
