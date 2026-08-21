@@ -21,6 +21,9 @@ HOLD_REASON_BELOW = (
     "The market band for comparable properties sits below the current rent, so the "
     "suggestion is to hold the current rent."
 )
+HOLD_REASON_AT_CAP = (
+    "The market band meets the allowed cap at a single figure, so that figure is the suggestion."
+)
 
 
 @dataclass(frozen=True)
@@ -106,9 +109,12 @@ async def suggest(
     property_desc: str,
     as_at: date,
 ) -> Suggestion:
-    if law.blocked or anchor.gap == "below_current":
-        reason = HOLD_REASON_BLOCKED if law.blocked else HOLD_REASON_BELOW
-        return Suggestion(anchor.current_weekly, reason, None)
+    if anchor.low == anchor.high:
+        if law.blocked:
+            return Suggestion(anchor.current_weekly, HOLD_REASON_BLOCKED, None)
+        if anchor.gap == "below_current":
+            return Suggestion(anchor.current_weekly, HOLD_REASON_BELOW, None)
+        return Suggestion(anchor.low, HOLD_REASON_AT_CAP, None)
     doc = DocumentInput(
         kind="text",
         text=evidence_block(anchor, jurisdiction, lease, law, property_desc, as_at),

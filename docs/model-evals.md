@@ -84,9 +84,10 @@ rent-statistics fixtures, each asserting the chosen figure is inside the
 deterministic range, every numeral in the reasoning appears in the
 evidence the prompt supplied (plus the model's own chosen figure),
 `above_cap` picks the upper half, and a hold-path scenario (law-blocked,
-or market already below current rent) returns the hold template without
-a model call. Gate: all-properties pass rate >= 0.9, both the primary
-and the failover backup, same code. The backup gate matters because
+market already below current rent, or a degenerate range pinned at the
+cap) returns one of the three hold templates without a model call. Gate:
+all-properties pass rate >= 0.9, both the primary and the failover
+backup, same code. The backup gate matters because
 `build_suggestion` asks for `failure_threshold=1`, so the backup starts
 serving live suggestions after a single primary infrastructure failure,
 not three - its output quality is load-bearing from the first retry.

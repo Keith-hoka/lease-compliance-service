@@ -309,8 +309,15 @@ async def test_pdf_smoke_scanned(eval_session):
 
 
 async def test_rent_suggestions_eval(eval_session):
-    from app.rent_suggest.judge import HOLD_REASON_BELOW, HOLD_REASON_BLOCKED, evidence_numbers
+    from app.rent_suggest.judge import (
+        HOLD_REASON_AT_CAP,
+        HOLD_REASON_BELOW,
+        HOLD_REASON_BLOCKED,
+        evidence_numbers,
+    )
     from tests.golden.rent_suggestions import RS_GATE, SCENARIOS, money_figures
+
+    hold_reasons = (HOLD_REASON_BLOCKED, HOLD_REASON_BELOW, HOLD_REASON_AT_CAP)
 
     years = {Decimal(y) for y in range(2000, 2100)}
     passed = 0
@@ -335,7 +342,7 @@ async def test_rent_suggestions_eval(eval_session):
             if scenario.expected_gap == "above_cap":
                 ok = ok and response.suggested_weekly >= (anchored.low + anchored.high) / 2
         else:
-            ok = ok and response.reasoning in (HOLD_REASON_BLOCKED, HOLD_REASON_BELOW)
+            ok = ok and response.reasoning in hold_reasons
         print(
             f"{scenario.name:40} {'PASS' if ok else 'FAIL'} {response.suggested_weekly} {response.reasoning[:80]}"
         )
@@ -350,7 +357,7 @@ async def test_rent_suggestions_eval(eval_session):
                     response.suggested_weekly >= (anchored.low + anchored.high) / 2
                 ):
                     reasons.append("above_cap direction")
-            elif response.reasoning not in (HOLD_REASON_BLOCKED, HOLD_REASON_BELOW):
+            elif response.reasoning not in hold_reasons:
                 reasons.append("hold template")
             print(f"  failed property: {', '.join(reasons)}")
         if response.model is not None:

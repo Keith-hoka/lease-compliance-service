@@ -9,6 +9,7 @@ from app.llm.failover import FailoverJudge
 from app.llm.prompts import RENT_SUGGESTION_SYSTEM, rent_suggestion_instruction
 from app.rent_suggest.anchor import Anchor, MarketCell
 from app.rent_suggest.judge import (
+    HOLD_REASON_AT_CAP,
     HOLD_REASON_BLOCKED,
     evidence_block,
     evidence_numbers,
@@ -110,23 +111,26 @@ async def test_suggest_skips_the_model_when_range_is_degenerate():
     assert result.reasoning == HOLD_REASON_BLOCKED and calls == []
 
 
-async def test_suggest_calls_the_judge_for_a_single_point_range_above_current():
-    """A degenerate range caused by the market sitting at the cap (gap "within")
-    must still reach the judge - only law.blocked or gap "below_current" hold.
+async def test_suggest_holds_at_cap_for_a_single_point_range_above_current():
+    """A degenerate range is always mathematically determined - low == high is
+    the one figure the judge could possibly return - so it never reaches the
+    judge, regardless of cause. Not law-blocked and not below_current (the
+    market sits exactly at the cap) gets its own template, HOLD_REASON_AT_CAP,
+    suggesting anchor.low rather than the current rent.
     """
-    seen = {}
+    calls = []
 
-    async def fake(doc, instruction, output_model):
-        seen["called"] = True
-        return output_model.model_validate(
-            {"suggested_weekly": "690", "reasoning": "The market sits right at the cap."}
-        )
+    async def never(doc, instruction, output_model):
+        calls.append(1)
+        return output_model.model_validate({"suggested_weekly": "690", "reasoning": "x"})
 
-    judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
+    judge = FailoverJudge(primary=never, primary_ref="claude-sonnet-5")
     single_point = Anchor(Decimal(600), Decimal(690), Decimal(690), "within", CELL)
     result = await suggest(judge, single_point, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
-    assert seen.get("called") is True
-    assert result.suggested_weekly == Decimal(690) and result.model == "claude-sonnet-5"
+    assert calls == []
+    assert result.suggested_weekly == Decimal(690)
+    assert result.reasoning == HOLD_REASON_AT_CAP
+    assert result.model is None
 
 
 async def test_suggest_calls_the_judge_with_evidence_and_records_model():
