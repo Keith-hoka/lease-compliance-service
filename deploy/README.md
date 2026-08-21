@@ -182,10 +182,12 @@ calls cost nothing. Calls are recorded under the usage class
 `rent_suggestions`.
 
 - The judge goes through the same provider failover as clause audits, but
-  `make_judge()` is constructed per request, so the circuit breaker state
-  is per request rather than shared with the worker - a primary outage
-  costs each request up to three failed attempts before its own backup
-  switch. Judge failure (after failover) returns HTTP 502
+  `make_judge()` is constructed per request with `failure_threshold=1`:
+  one primary infrastructure failure switches that request to the backup
+  immediately, since a per-request breaker never lives long enough to
+  accumulate consecutive failures. The worker's long-lived judge keeps
+  the shared breaker at its default: 3 consecutive failures within a
+  300 s cooldown. Judge failure (after failover) returns HTTP 502
   `{"detail": {"code": "judge_unavailable"}}`.
 - Provider wire schemas strip `minimum`/`maximum`/`pattern` keywords
   (Anthropic rejects them); the range bound is enforced when the reply is
