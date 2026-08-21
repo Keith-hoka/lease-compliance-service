@@ -34,6 +34,14 @@ async def law_card(
     renewal_start: date,
     proposed_weekly: Decimal,
 ) -> LawCard:
+    """Run the deterministic rent rules against a hypothetical increase.
+
+    Findings whose rule_id ends "_notice" are dropped: notice is a future
+    act (whether and when the landlord gives it) that the hypothetical
+    increase cannot carry, so a notice rule is always vacuously green here
+    - keeping it would render a misleading green row beside a rent nobody
+    has actually given notice of.
+    """
     proposed = RentIncrease(
         effective_on=renewal_start, new_amount=from_weekly(proposed_weekly, lease.rent_frequency)
     )
@@ -41,5 +49,9 @@ async def law_card(
         update={"rent_increases": [*(lease.rent_increases or []), proposed]}
     )
     findings = await run_audit(session, jurisdiction, as_at, hypothetical)
-    relevant = [f for f in findings if any(m in f.rule_id for m in RENT_RULE_MARKERS)]
+    relevant = [
+        f
+        for f in findings
+        if any(m in f.rule_id for m in RENT_RULE_MARKERS) and not f.rule_id.endswith("_notice")
+    ]
     return LawCard(findings=relevant, blocked=any(f.verdict == "red" for f in relevant))

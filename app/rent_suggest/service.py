@@ -64,6 +64,15 @@ def _market(anchored: Anchor, jurisdiction: str) -> SuggestionMarket | None:
 async def build_suggestion(
     session: AsyncSession, request: RentSuggestionRequest
 ) -> RentSuggestionResponse:
+    """Build one rent suggestion.
+
+    Passes failure_threshold=1 to make_judge(): the judge built here is
+    per-request (see the module docstring), so it gets at most one call
+    before it is discarded - it must switch to the backup on that call's
+    first infrastructure failure rather than waiting to accumulate the
+    worker's default 3 consecutive failures, which a single request can
+    never reach.
+    """
     as_at = request.as_at or sydney_today()
     current = to_weekly_rent(request.lease.rent_amount, request.lease.rent_frequency)
     cell = await market_cell(
@@ -87,7 +96,7 @@ async def build_suggestion(
             anchored.market,
         )
     result = await suggest(
-        make_judge(),
+        make_judge(failure_threshold=1),
         anchored,
         request.jurisdiction,
         request.lease,

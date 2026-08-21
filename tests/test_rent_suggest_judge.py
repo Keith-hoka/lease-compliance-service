@@ -110,6 +110,25 @@ async def test_suggest_skips_the_model_when_range_is_degenerate():
     assert result.reasoning == HOLD_REASON_BLOCKED and calls == []
 
 
+async def test_suggest_calls_the_judge_for_a_single_point_range_above_current():
+    """A degenerate range caused by the market sitting at the cap (gap "within")
+    must still reach the judge - only law.blocked or gap "below_current" hold.
+    """
+    seen = {}
+
+    async def fake(doc, instruction, output_model):
+        seen["called"] = True
+        return output_model.model_validate(
+            {"suggested_weekly": "690", "reasoning": "The market sits right at the cap."}
+        )
+
+    judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
+    single_point = Anchor(Decimal(600), Decimal(690), Decimal(690), "within", CELL)
+    result = await suggest(judge, single_point, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
+    assert seen.get("called") is True
+    assert result.suggested_weekly == Decimal(690) and result.model == "claude-sonnet-5"
+
+
 async def test_suggest_calls_the_judge_with_evidence_and_records_model():
     seen = {}
 

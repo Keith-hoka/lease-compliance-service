@@ -249,6 +249,8 @@ def test_openai_uses_document_system_prompt_when_given():
     doc = DocumentInput(kind="text", text="lease body", system="You are a rent adviser.")
     kwargs = openai_provider.build_response_kwargs("gpt-5.6-terra", doc, "i", FieldsOutput)
     assert kwargs["instructions"] == "You are a rent adviser."
+    default = openai_provider.build_response_kwargs("gpt-5.6-terra", DOC, "i", FieldsOutput)
+    assert default["instructions"] == SYSTEM
 
 
 def test_openai_pdf_document_part_is_base64_file():

@@ -106,7 +106,7 @@ async def suggest(
     property_desc: str,
     as_at: date,
 ) -> Suggestion:
-    if anchor.low == anchor.high:
+    if law.blocked or anchor.gap == "below_current":
         reason = HOLD_REASON_BLOCKED if law.blocked else HOLD_REASON_BELOW
         return Suggestion(anchor.current_weekly, reason, None)
     doc = DocumentInput(

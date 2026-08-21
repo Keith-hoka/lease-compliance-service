@@ -29,16 +29,18 @@ def _judge(script):
     return judge
 
 
-def _wrapper(primary_script, backup_script=None, clock=None):
+def _wrapper(primary_script, backup_script=None, clock=None, failure_threshold=None):
     now = {"t": 0.0}
     primary = _judge(primary_script)
     backup = _judge(backup_script) if backup_script is not None else None
+    kwargs = {} if failure_threshold is None else {"failure_threshold": failure_threshold}
     wrapper = FailoverJudge(
         primary=primary,
         primary_ref="claude-sonnet-5",
         backup=backup,
         backup_ref="openai:gpt-5.6-terra" if backup else None,
         clock=clock or (lambda: now["t"]),
+        **kwargs,
     )
     return wrapper, primary, backup, now
 
@@ -52,6 +54,18 @@ async def test_trips_after_three_consecutive_downs_and_serves_via_backup():
     assert await wrapper(DOC, "i", FieldsOutput) == "ok"
     assert wrapper.state == "open"
     assert len(primary.calls) == 3 and len(backup.calls) == 1
+
+
+async def test_failure_threshold_one_trips_on_the_first_down():
+    """A per-request judge only ever sees one call, so failure_threshold=1 must
+    route that same call's failure straight to the backup, not raise.
+    """
+    wrapper, primary, backup, _ = _wrapper(["down"], ["ok"], failure_threshold=1)
+    result = await wrapper(DOC, "i", FieldsOutput)
+    assert result == "ok"
+    assert wrapper.state == "open"
+    assert len(primary.calls) == 1 and len(backup.calls) == 1
+    assert wrapper.drain_models_used() == ["openai:gpt-5.6-terra"]
 
 
 async def test_success_resets_the_counter():
@@ -212,3 +226,22 @@ def test_make_judge_wires_backup_when_configured(monkeypatch):
     assert isinstance(judge, FailoverJudge)
     assert judge._backup is not None
     assert judge._backup_ref == "openai:gpt-5.6-terra"
+
+
+def test_make_judge_defaults_to_the_module_failure_threshold(monkeypatch):
+    from app.core.config import settings
+    from app.llm import client as client_module
+    from app.llm.failover import FAILURE_THRESHOLD
+
+    monkeypatch.setattr(settings, "clause_audit_failover_model", "")
+    judge = client_module.make_judge()
+    assert judge._failure_threshold == FAILURE_THRESHOLD
+
+
+def test_make_judge_forwards_a_custom_failure_threshold(monkeypatch):
+    from app.core.config import settings
+    from app.llm import client as client_module
+
+    monkeypatch.setattr(settings, "clause_audit_failover_model", "")
+    judge = client_module.make_judge(failure_threshold=1)
+    assert judge._failure_threshold == 1

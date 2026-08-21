@@ -1,7 +1,7 @@
 """Judge construction: provider selection behind the frozen JudgeFn interface."""
 
 from app.core.config import settings
-from app.llm.failover import FailoverJudge, JudgeError, JudgeFn, ProviderDown
+from app.llm.failover import FAILURE_THRESHOLD, FailoverJudge, JudgeError, JudgeFn, ProviderDown
 from app.llm.providers.anthropic import make_anthropic_judge
 from app.llm.providers.openai_ import make_openai_judge
 
@@ -36,7 +36,7 @@ def _provider_judge(ref: str) -> JudgeFn:
     return make_openai_judge(model)
 
 
-def make_judge() -> FailoverJudge:
+def make_judge(failure_threshold: int = FAILURE_THRESHOLD) -> FailoverJudge:
     primary_ref = settings.clause_audit_model
     backup_ref = settings.clause_audit_failover_model
     backup = _provider_judge(backup_ref) if backup_ref else None
@@ -45,4 +45,5 @@ def make_judge() -> FailoverJudge:
         primary_ref=primary_ref,
         backup=backup,
         backup_ref=backup_ref or None,
+        failure_threshold=failure_threshold,
     )

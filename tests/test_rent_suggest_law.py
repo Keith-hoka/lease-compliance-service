@@ -32,6 +32,24 @@ async def test_law_card_green_when_increase_is_lawful(db_session):
     assert {f.verdict for f in card.findings} <= {"green", "skipped"}
 
 
+async def test_law_card_drops_notice_findings(db_session):
+    """The hypothetical increase never carries notice_given_on, so a notice
+    rule is always vacuously green - drop it rather than show a misleading
+    green row next to a rent the landlord has not actually noticed yet.
+    """
+    await _seed_nsw_corpus(db_session)
+    lease = LeaseInput(
+        rent_amount=Decimal(600),
+        rent_frequency="weekly",
+        start_date=date(2024, 10, 1),
+        end_date=date(2026, 9, 30),
+    )
+    card = await law_card(
+        db_session, "NSW", date(2026, 1, 1), lease, date(2026, 10, 1), Decimal(630)
+    )
+    assert all(not f.rule_id.endswith("_notice") for f in card.findings)
+
+
 async def test_law_card_blocked_by_frequency_rule(db_session):
     await _seed_nsw_corpus(db_session)
     lease = LeaseInput(

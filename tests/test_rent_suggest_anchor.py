@@ -34,6 +34,15 @@ def test_within_intersects_market_and_cap_bands():
     assert (result.low, result.high, result.gap) == (Decimal(698), Decimal(748), "within")
 
 
+def test_within_can_collapse_to_a_single_point_above_current():
+    """market_low == cap_high is still "within", not "below_current": the market
+    isn't below current, it just leaves a one-point gap right at the cap.
+    """
+    cell = _cell(median=Decimal(795), p25=Decimal(690), p75=Decimal(900))
+    result = anchor(Decimal(600), "NSW", cell)
+    assert (result.low, result.high, result.gap) == (Decimal(690), Decimal(690), "within")
+
+
 def test_above_cap_uses_cap_band():
     result = anchor(Decimal(500), "NSW", _cell())
     assert (result.low, result.high, result.gap) == (Decimal(500), Decimal(575), "above_cap")

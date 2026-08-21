@@ -43,7 +43,9 @@ def _fake_judge(monkeypatch, weekly="720", reasoning="Median 760 supports 720.")
         return output_model.model_validate({"suggested_weekly": weekly, "reasoning": reasoning})
 
     monkeypatch.setattr(
-        suggest_service, "make_judge", lambda: FailoverJudge(primary=fake, primary_ref="fake-model")
+        suggest_service,
+        "make_judge",
+        lambda **kwargs: FailoverJudge(primary=fake, primary_ref="fake-model"),
     )
 
 
@@ -73,6 +75,30 @@ async def test_full_response_shape(client, db_session, seeded_tenants, monkeypat
     assert body["engine_version"]
 
 
+async def test_build_suggestion_requests_failover_on_the_first_infra_failure(
+    client, db_session, seeded_tenants, monkeypatch
+):
+    """This endpoint builds one judge per request (see service.py's docstring),
+    so it must ask for failure_threshold=1: a per-request judge never
+    accumulates the worker's default 3 consecutive failures.
+    """
+    captured = {}
+
+    def fake_make_judge(**kwargs):
+        captured.update(kwargs)
+
+        async def fake(doc, instruction, output_model):
+            return output_model.model_validate({"suggested_weekly": "650", "reasoning": "x"})
+
+        return FailoverJudge(primary=fake, primary_ref="fake-model")
+
+    await _seed_market(db_session)
+    monkeypatch.setattr(suggest_service, "make_judge", fake_make_judge)
+    response = await client.post("/v1/rent-suggestions", json=BODY, headers=KEY)
+    assert response.status_code == 200, response.text
+    assert captured == {"failure_threshold": 1}
+
+
 async def test_no_market_data_uses_cap_band(client, db_session, seeded_tenants, monkeypatch):
     _fake_judge(monkeypatch, weekly="650")
     response = await client.post("/v1/rent-suggestions", json=BODY, headers=KEY)
@@ -93,7 +119,9 @@ async def test_blocked_by_law_skips_model(client, db_session, seeded_tenants, mo
     await _seed_nsw_corpus(db_session)
     await db_session.commit()
     monkeypatch.setattr(
-        suggest_service, "make_judge", lambda: FailoverJudge(primary=fake, primary_ref="fake")
+        suggest_service,
+        "make_judge",
+        lambda **kwargs: FailoverJudge(primary=fake, primary_ref="fake"),
     )
     body = dict(
         BODY,
@@ -115,7 +143,7 @@ async def test_judge_failure_is_502(client, db_session, seeded_tenants, monkeypa
 
     await _seed_market(db_session)
     monkeypatch.setattr(
-        suggest_service, "make_judge", lambda: FailoverJudge(primary=down, primary_ref="p")
+        suggest_service, "make_judge", lambda **kwargs: FailoverJudge(primary=down, primary_ref="p")
     )
     response = await client.post("/v1/rent-suggestions", json=BODY, headers=KEY)
     assert response.status_code == 502 and response.json()["detail"] == {

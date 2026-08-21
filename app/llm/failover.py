@@ -28,7 +28,7 @@ COOLDOWN_SECONDS = 300.0
 class FailoverJudge:
     """Callable judge that routes to a backup while the primary is down.
 
-    closed: calls go to primary; FAILURE_THRESHOLD consecutive ProviderDown
+    closed: calls go to primary; failure_threshold consecutive ProviderDown
     failures trip to open. open: calls go to backup until COOLDOWN_SECONDS
     elapse, then the next call probes primary (half_open). Any primary
     response - including a content-level JudgeError - closes the breaker;
@@ -38,6 +38,12 @@ class FailoverJudge:
     that ends without resolving to ProviderDown, JudgeError, or success
     (e.g. a cancellation) re-opens the breaker with a fresh cooldown
     rather than stranding it in half_open.
+
+    failure_threshold defaults to the module constant FAILURE_THRESHOLD,
+    which is what the worker's long-lived, shared instance uses. A judge
+    built fresh per request instead passes failure_threshold=1: such an
+    instance sees at most one call before it is discarded, so counting to
+    the default of 3 would never trip within a single request.
     """
 
     def __init__(
@@ -47,12 +53,14 @@ class FailoverJudge:
         backup: JudgeFn | None = None,
         backup_ref: str | None = None,
         clock: Callable[[], float] = time.monotonic,
+        failure_threshold: int = FAILURE_THRESHOLD,
     ):
         self._primary = primary
         self._primary_ref = primary_ref
         self._backup = backup
         self._backup_ref = backup_ref
         self._clock = clock
+        self._failure_threshold = failure_threshold
         self._state = "closed"
         self._failures = 0
         self._opened_at = 0.0
@@ -108,7 +116,7 @@ class FailoverJudge:
             self._trip("probe failed")
             return
         self._failures += 1
-        if self._failures >= FAILURE_THRESHOLD and self._backup is not None:
+        if self._failures >= self._failure_threshold and self._backup is not None:
             self._trip(f"{self._failures} consecutive failures")
 
     def _trip(self, why: str) -> None:
