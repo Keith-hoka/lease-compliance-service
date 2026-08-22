@@ -1,6 +1,8 @@
 """Deterministic market anchoring: a suggestion range from statistics and a cap."""
 
+import calendar
 from dataclasses import dataclass
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
@@ -8,11 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import RentStatistic
 from app.rent_stats.areas import resolve_area
+from app.rules.base import add_months
 
 CAP_RATIO = Decimal("1.15")
 VIC_BAND = Decimal("0.08")
 THIN_SAMPLE = 10
 SERIES_PERIODS = 4
+STALE_MONTHS = 6
+_QUARTER_END_MONTH = {1: 3, 2: 6, 3: 9, 4: 12}
 
 
 @dataclass(frozen=True)
@@ -38,6 +43,18 @@ class Anchor:
 
 def dollars(value: Decimal) -> Decimal:
     return value.quantize(Decimal(1), rounding=ROUND_HALF_UP)
+
+
+def period_end(period: str) -> date:
+    """Last day of a statistics period: '2026-07' -> 2026-07-31, '2025-Q3' -> 2025-09-30."""
+    year, unit = period.split("-")
+    month = _QUARTER_END_MONTH[int(unit[1])] if unit.startswith("Q") else int(unit)
+    return date(int(year), month, calendar.monthrange(int(year), month)[1])
+
+
+def is_stale(period: str, as_at: date) -> bool:
+    """True when the period ended more than STALE_MONTHS calendar months before as_at."""
+    return add_months(period_end(period), STALE_MONTHS) < as_at
 
 
 async def _series(session, jurisdiction, area_label, dwelling_type, bedrooms):

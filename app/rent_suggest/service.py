@@ -7,11 +7,13 @@ rather than long-lived, which is acceptable for a synchronous, low-volume
 endpoint. The worker's long-lived judge (app.main) is unaffected.
 """
 
+from datetime import date
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dates import sydney_today
 from app.llm.client import make_judge
-from app.rent_suggest.anchor import Anchor, anchor, market_cell
+from app.rent_suggest.anchor import Anchor, anchor, is_stale, market_cell, period_end
 from app.rent_suggest.judge import suggest
 from app.rent_suggest.law import law_card
 from app.rules import ENGINE_VERSION
@@ -46,12 +48,14 @@ def _property_desc(request: RentSuggestionRequest) -> str:
     return f"{request.property.dwelling_type}{beds}, {request.property.area_key}"
 
 
-def _market(anchored: Anchor, jurisdiction: str) -> SuggestionMarket | None:
+def _market(anchored: Anchor, jurisdiction: str, as_at: date) -> SuggestionMarket | None:
     cell = anchored.market
     if cell is None:
         return None
     return SuggestionMarket(
         period=cell.period,
+        period_end=period_end(cell.period),
+        stale=is_stale(cell.period, as_at),
         median=cell.median,
         p25=cell.p25,
         p75=cell.p75,
@@ -96,6 +100,7 @@ async def build_suggestion(
             anchored.gap,
             anchored.market,
         )
+    stale = is_stale(cell.period, as_at) if cell else False
     result = await suggest(
         make_judge(failure_threshold=1),
         anchored,
@@ -104,13 +109,14 @@ async def build_suggestion(
         law,
         _property_desc(request),
         as_at,
+        stale,
     )
     return RentSuggestionResponse(
         current_weekly=anchored.current_weekly,
         suggested_weekly=result.suggested_weekly,
         range=SuggestionRange(low=anchored.low, high=anchored.high),
         market_gap=anchored.gap,
-        market=_market(anchored, request.jurisdiction),
+        market=_market(anchored, request.jurisdiction, as_at),
         law_card=law.findings,
         law_blocked=law.blocked,
         reasoning=result.reasoning,

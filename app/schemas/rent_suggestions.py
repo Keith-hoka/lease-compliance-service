@@ -35,6 +35,8 @@ class SuggestionSource(BaseModel):
 
 class SuggestionMarket(BaseModel):
     period: str
+    period_end: date
+    stale: bool
     median: Decimal
     p25: Decimal | None
     p75: Decimal | None

@@ -146,7 +146,7 @@ RENT_SUGGESTION_SYSTEM = (
 )
 
 
-def rent_suggestion_instruction(low, high, gap: str) -> str:
+def rent_suggestion_instruction(low, high, gap: str, stale: bool) -> str:
     steer = {
         "above_cap": (
             " The market band sits above the cap, so choose from the upper part of the "
@@ -155,9 +155,14 @@ def rent_suggestion_instruction(low, high, gap: str) -> str:
         "within": "",
         "no_data": " No market statistics exist for this area; say so and stay conservative.",
     }[gap]
+    stale_note = (
+        " The newest market data is more than six months old; say so, using the words 'six months'."
+        if stale
+        else ""
+    )
     return (
         f"Choose suggested_weekly between {low} and {high} inclusive (whole dollars)."
-        f"{steer} If the newest market period is more than six months old, say so. "
+        f"{steer}{stale_note} "
         "Write reasoning as two or three sentences citing only supplied numbers. "
         "Do not compute new figures such as differences or percentages; describe a "
         "change by naming the supplied current rent and your chosen figure."

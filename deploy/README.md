@@ -207,6 +207,11 @@ calls cost nothing. Calls are recorded under the usage class
   (Anthropic rejects them); the range bound is enforced when the reply is
   parsed against the pydantic model, so an out-of-range figure becomes a
   502, never a response.
+- `market.stale` and `market.period_end` are computed by the service
+  (`app/rent_suggest/anchor.py`, stale once the newest market period
+  ended more than six calendar months before `as_at`), and the judge
+  instruction states staleness to the model as a supplied fact rather
+  than asking it to work it out.
 - Any UI showing a VIC result must render the Homes Victoria CC BY 4.0
   attribution; the response's `market.source.licence` carries the string
   to key on.

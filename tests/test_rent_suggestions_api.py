@@ -20,11 +20,11 @@ BODY = {
 }
 
 
-async def _seed_market(session):
+async def _seed_market(session, period="2026-07"):
     session.add(
         RentStatistic(
             jurisdiction="NSW",
-            period="2026-07",
+            period=period,
             area_code="2000",
             dwelling_type="unit",
             bedrooms=2,
@@ -99,6 +99,7 @@ async def test_full_response_shape(client, db_session, seeded_tenants, monkeypat
     assert body["market_gap"] == "above_cap"
     assert Decimal(body["suggested_weekly"]) == Decimal(650)
     assert body["market"]["period"] == "2026-07" and body["market"]["sample_size"] == 170
+    assert body["market"]["period_end"] == "2026-07-31" and body["market"]["stale"] is False
     assert body["law_blocked"] is False and body["law_card"]
     assert (
         body["model"] == "fake-model"
@@ -117,6 +118,15 @@ async def test_vic_grouped_label_resolves_and_market_carries_area_label(
     body = response.json()
     assert body["market"] is not None
     assert body["market"]["area_label"] == "Albert Park-Middle Park-West St Kilda"
+
+
+async def test_stale_market_period_is_flagged(client, db_session, seeded_tenants, monkeypatch):
+    await _seed_market(db_session, period="2023-02")
+    _fake_judge(monkeypatch, weekly="650")
+    response = await client.post("/v1/rent-suggestions", json=BODY, headers=KEY)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["market"]["period_end"] == "2023-02-28" and body["market"]["stale"] is True
 
 
 async def test_build_suggestion_requests_failover_on_the_first_infra_failure(

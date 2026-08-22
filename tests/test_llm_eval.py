@@ -323,7 +323,7 @@ async def test_rent_suggestions_eval(eval_session):
     passed = 0
     for scenario in SCENARIOS:
         response, anchored, law, evidence_text = await _run_scenario(eval_session, scenario)
-        cited = allowed = None
+        cited = allowed = stale_expected = mentions_stale = None
         ok = anchored.low <= response.suggested_weekly <= anchored.high
         if response.model is not None:
             # Anything the model may correctly cite: the structured figures,
@@ -341,6 +341,9 @@ async def test_rent_suggestions_eval(eval_session):
             ok = ok and cited <= allowed
             if scenario.expected_gap == "above_cap":
                 ok = ok and response.suggested_weekly >= (anchored.low + anchored.high) / 2
+            stale_expected = response.market is not None and response.market.stale
+            mentions_stale = "six months" in response.reasoning.lower()
+            ok = ok and mentions_stale == stale_expected
         else:
             ok = ok and response.reasoning in hold_reasons
         print(
@@ -357,6 +360,8 @@ async def test_rent_suggestions_eval(eval_session):
                     response.suggested_weekly >= (anchored.low + anchored.high) / 2
                 ):
                     reasons.append("above_cap direction")
+                if mentions_stale != stale_expected:
+                    reasons.append("staleness mention")
             elif response.reasoning not in hold_reasons:
                 reasons.append("hold template")
             print(f"  failed property: {', '.join(reasons)}")

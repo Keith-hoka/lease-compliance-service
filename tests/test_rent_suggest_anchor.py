@@ -1,7 +1,16 @@
+from datetime import date
 from decimal import Decimal
 
 from app.models import RentStatistic
-from app.rent_suggest.anchor import MarketCell, anchor, band_for, dollars, market_cell
+from app.rent_suggest.anchor import (
+    MarketCell,
+    anchor,
+    band_for,
+    dollars,
+    is_stale,
+    market_cell,
+    period_end,
+)
 
 
 def _cell(**kw) -> MarketCell:
@@ -66,6 +75,27 @@ def test_no_data_uses_cap_band():
         "no_data",
         None,
     )
+
+
+def test_period_end_for_a_month():
+    assert period_end("2026-07") == date(2026, 7, 31)
+
+
+def test_period_end_for_each_quarter():
+    assert period_end("2025-Q1") == date(2025, 3, 31)
+    assert period_end("2025-Q2") == date(2025, 6, 30)
+    assert period_end("2025-Q3") == date(2025, 9, 30)
+    assert period_end("2025-Q4") == date(2025, 12, 31)
+
+
+def test_is_stale_boundary_for_a_month_period():
+    assert is_stale("2026-01", date(2026, 7, 31)) is False
+    assert is_stale("2026-01", date(2026, 8, 1)) is True
+
+
+def test_is_stale_boundary_for_a_quarter_period():
+    assert is_stale("2025-Q3", date(2026, 3, 30)) is False
+    assert is_stale("2025-Q3", date(2026, 3, 31)) is True
 
 
 async def test_market_cell_prefers_exact_then_falls_back_when_thin(db_session):

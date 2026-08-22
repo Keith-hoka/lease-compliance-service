@@ -108,6 +108,7 @@ async def suggest(
     law: LawCard,
     property_desc: str,
     as_at: date,
+    stale: bool,
 ) -> Suggestion:
     if anchor.low == anchor.high:
         if law.blocked:
@@ -122,7 +123,7 @@ async def suggest(
     )
     output = await judge(
         doc,
-        rent_suggestion_instruction(anchor.low, anchor.high, anchor.gap),
+        rent_suggestion_instruction(anchor.low, anchor.high, anchor.gap, stale),
         suggestion_output_model(anchor.low, anchor.high),
     )
     used = judge.drain_models_used()

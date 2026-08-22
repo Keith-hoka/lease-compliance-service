@@ -94,8 +94,19 @@ def test_evidence_numbers_collects_every_money_figure():
 
 def test_system_and_instruction_mention_range_and_citation_rule():
     assert "general information" in RENT_SUGGESTION_SYSTEM.lower()
-    text = rent_suggestion_instruction(Decimal(698), Decimal(748), "above_cap")
+    text = rent_suggestion_instruction(Decimal(698), Decimal(748), "above_cap", False)
     assert "698" in text and "748" in text and "upper" in text.lower()
+
+
+def test_instruction_states_staleness_as_fact_when_stale():
+    text = rent_suggestion_instruction(Decimal(698), Decimal(748), "within", True)
+    assert "six months" in text.lower()
+
+
+def test_instruction_omits_staleness_and_the_old_conditional_when_fresh():
+    text = rent_suggestion_instruction(Decimal(698), Decimal(748), "within", False)
+    assert "six months" not in text.lower()
+    assert "newest market period" not in text.lower()
 
 
 async def test_suggest_skips_the_model_when_range_is_degenerate():
@@ -107,7 +118,7 @@ async def test_suggest_skips_the_model_when_range_is_degenerate():
     judge = FailoverJudge(primary=never, primary_ref="claude-sonnet-5")
     held = Anchor(Decimal(600), Decimal(600), Decimal(600), "within", CELL)
     blocked = LawCard(findings=[], blocked=True)
-    result = await suggest(judge, held, "NSW", LEASE, blocked, "unit", date(2026, 8, 17))
+    result = await suggest(judge, held, "NSW", LEASE, blocked, "unit", date(2026, 8, 17), False)
     assert result.suggested_weekly == Decimal(600) and result.model is None
     assert result.reasoning == HOLD_REASON_BLOCKED and calls == []
 
@@ -127,7 +138,7 @@ async def test_suggest_holds_at_cap_for_a_single_point_range_above_current():
 
     judge = FailoverJudge(primary=never, primary_ref="claude-sonnet-5")
     single_point = Anchor(Decimal(600), Decimal(690), Decimal(690), "within", CELL)
-    result = await suggest(judge, single_point, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
+    result = await suggest(judge, single_point, "NSW", LEASE, LAW, "unit", date(2026, 8, 17), False)
     assert calls == []
     assert result.suggested_weekly == Decimal(690)
     assert result.reasoning == HOLD_REASON_AT_CAP
@@ -146,10 +157,25 @@ async def test_suggest_calls_the_judge_with_evidence_and_records_model():
 
     judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
     live = Anchor(Decimal(600), Decimal(698), Decimal(748), "within", CELL)
-    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
+    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17), False)
     assert result.suggested_weekly == Decimal(720) and result.model == "claude-sonnet-5"
     assert isinstance(seen["doc"], DocumentInput) and seen["doc"].kind == "text"
     assert "760" in seen["doc"].text and "698" in seen["instruction"]
+
+
+async def test_suggest_passes_stale_into_the_instruction():
+    seen = {}
+
+    async def fake(doc, instruction, output_model):
+        seen["instruction"] = instruction
+        return output_model.model_validate(
+            {"suggested_weekly": "720", "reasoning": "Market median 760; six months old."}
+        )
+
+    judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
+    live = Anchor(Decimal(600), Decimal(698), Decimal(748), "within", CELL)
+    await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17), True)
+    assert "six months" in seen["instruction"].lower()
 
 
 async def test_suggest_quantizes_the_judged_suggestion_to_whole_dollars():
@@ -160,5 +186,5 @@ async def test_suggest_quantizes_the_judged_suggestion_to_whole_dollars():
 
     judge = FailoverJudge(primary=fake, primary_ref="claude-sonnet-5")
     live = Anchor(Decimal(600), Decimal(698), Decimal(748), "within", CELL)
-    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17))
+    result = await suggest(judge, live, "NSW", LEASE, LAW, "unit", date(2026, 8, 17), False)
     assert result.suggested_weekly == Decimal(720)
