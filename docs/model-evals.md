@@ -97,8 +97,8 @@ not three - its output quality is load-bearing from the first retry.
 
 | Model | Result | Commit |
 |---|---|---|
-| claude-sonnet-5 (primary) | **19/19 = 1.00** | 1b75cdb |
-| openai:gpt-5.6-terra (backup) | **19/19 = 1.00** | 1b75cdb |
+| claude-sonnet-5 (primary) | **19/19 = 1.00** | 1b75cdb; rerun 1.00 at 3ad836a (staleness instruction + property) |
+| openai:gpt-5.6-terra (backup) | **19/19 = 1.00** | 1b75cdb; rerun 1.00 at 3ad836a |
 
 What the runs found on the way, all fixed without touching the gate:
 
