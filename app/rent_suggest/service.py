@@ -27,7 +27,7 @@ from app.schemas.rent_suggestions import (
 )
 
 DISCLAIMER = "General information, not legal advice."
-_SOURCES = {
+SOURCES = {
     "NSW": SuggestionSource(
         name="NSW Fair Trading rental bond lodgements",
         url="https://www.nsw.gov.au/housing-and-construction/rental-forms-surveys-and-data/rental-bond-data",
@@ -62,7 +62,7 @@ def _market(anchored: Anchor, jurisdiction: str, as_at: date) -> SuggestionMarke
         sample_size=cell.sample_size,
         fallback=cell.fallback,
         area_label=cell.area_label,
-        source=_SOURCES[jurisdiction],
+        source=SOURCES[jurisdiction],
     )
 
 

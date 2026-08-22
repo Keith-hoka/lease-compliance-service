@@ -217,6 +217,18 @@ calls cost nothing. Calls are recorded under the usage class
   to key on.
 - `docs/model-evals.md` records the eval gate for both models.
 
+## Market rent
+
+`GET /v1/market-rent` returns a deterministic market-rent estimate for a
+property type in an area: the median of the same statistics cell the
+rent-suggestion endpoint anchors on (same thin-sample fallback chain,
+same VIC label resolution), the band (NSW p25-p75, VIC +-8%), the newest
+eight periods, a trend against the same period a year earlier, and the
+staleness flag. No model call, so no failover and no eval gate; calls
+are recorded under the usage class `market_rent`. Missing data is a 200
+with null estimate fields, never a 404. Any UI showing a VIC result must
+render the Homes Victoria CC BY 4.0 attribution (`source.licence`).
+
 ## Backups
 
 Nightly cron on the droplet (installed per the deployment plan Task 8):
