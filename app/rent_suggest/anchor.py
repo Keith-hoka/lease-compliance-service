@@ -57,7 +57,7 @@ def is_stale(period: str, as_at: date) -> bool:
     return add_months(period_end(period), STALE_MONTHS) < as_at
 
 
-async def _series(session, jurisdiction, area_label, dwelling_type, bedrooms):
+async def _series(session, jurisdiction, area_label, dwelling_type, bedrooms, periods):
     stmt = (
         select(RentStatistic)
         .where(
@@ -69,7 +69,7 @@ async def _series(session, jurisdiction, area_label, dwelling_type, bedrooms):
             else RentStatistic.bedrooms == bedrooms,
         )
         .order_by(RentStatistic.period.desc())
-        .limit(SERIES_PERIODS)
+        .limit(periods)
     )
     return list((await session.execute(stmt)).scalars().all())
 
@@ -88,7 +88,9 @@ async def market_cell(
     area_key: str,
     dwelling_type: str,
     bedrooms: int | None,
+    periods: int = SERIES_PERIODS,
 ) -> MarketCell | None:
+    """The newest statistics cell for the property, with up to `periods` rows of history."""
     area_label = await resolve_area(session, jurisdiction, area_key)
     if area_label is None:
         return None
@@ -96,7 +98,7 @@ async def market_cell(
     for dtype, beds, fallback in _candidates(jurisdiction, dwelling_type, bedrooms):
         if (dtype, beds) == (dwelling_type, bedrooms) and fallback is not None:
             continue
-        rows = await _series(session, jurisdiction, area_label, dtype, beds)
+        rows = await _series(session, jurisdiction, area_label, dtype, beds, periods)
         if not rows:
             continue
         newest = rows[0]

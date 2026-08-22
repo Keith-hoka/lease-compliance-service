@@ -188,3 +188,39 @@ async def test_vic_falls_back_only_to_all(db_session):
     await db_session.commit()
     cell = await market_cell(db_session, "VIC", "Carlton", "unit", 2)
     assert cell.fallback == "dwelling_all" and cell.median == Decimal(600)
+
+
+def _monthly_rows(periods: list[str]) -> list[RentStatistic]:
+    return [
+        RentStatistic(
+            jurisdiction="NSW",
+            period=period,
+            area_code="2000",
+            dwelling_type="unit",
+            bedrooms=2,
+            median=Decimal(700),
+            p25=Decimal(650),
+            p75=Decimal(750),
+            sample_size=20,
+            source_url="u",
+        )
+        for period in periods
+    ]
+
+
+async def test_market_cell_periods_parameter_controls_series_depth(db_session):
+    db_session.add_all(
+        _monthly_rows(["2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02"])
+    )
+    await db_session.flush()
+    default = await market_cell(db_session, "NSW", "2000", "unit", 2)
+    deep = await market_cell(db_session, "NSW", "2000", "unit", 2, periods=6)
+    assert [r.period for r in default.series] == ["2026-07", "2026-06", "2026-05", "2026-04"]
+    assert [r.period for r in deep.series] == [
+        "2026-07",
+        "2026-06",
+        "2026-05",
+        "2026-04",
+        "2026-03",
+        "2026-02",
+    ]
