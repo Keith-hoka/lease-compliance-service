@@ -65,9 +65,11 @@ grouped labels exactly as in (b)). `as_at` defaults to the Sydney date.
   calendar months before `as_at`) as defined by the (b) follow-ups.
 - `series` is the newest 8 periods of the cell used (NSW months, VIC
   quarters), newest first. `trend` compares the newest period with the
-  period roughly twelve months earlier - the `YYYY-MM` twelve months
-  back for NSW, the `YYYY-Qn` four quarters back for VIC - matched
-  exactly in the series; when that period is absent `trend` is null.
+  same period one year earlier (`2026-07` -> `2025-07`, `2025-Q3` ->
+  `2024-Q3`), matched exactly in the rows fetched for the cell - the
+  estimate fetches 13 periods so that comparison period is available
+  for monthly and quarterly series alike, and returns the newest 8;
+  when the comparison period is absent `trend` is null.
   `change_pct = (latest - from) / from x 100`, one decimal.
 - `basis` is the constant `"median"`, an explicit marker for any future
   estimator; no other estimator exists.
