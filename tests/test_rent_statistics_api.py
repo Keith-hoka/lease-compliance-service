@@ -77,6 +77,38 @@ async def test_unknown_area_is_empty_series(client, db_session, seeded_tenants):
     assert response.status_code == 200 and response.json()["series"] == []
 
 
+async def test_vic_short_key_resolves_to_grouped_label(client, db_session, seeded_tenants):
+    await _seed(db_session)
+    response = await client.get(
+        "/v1/rent-statistics",
+        params={
+            "jurisdiction": "VIC",
+            "area": "Albert Park",
+            "dwelling_type": "unit",
+            "bedrooms": 2,
+        },
+        headers=KEY,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["area_label"] == "Albert Park-Middle Park-West St Kilda"
+    assert body["series"] != []
+
+
+async def test_vic_unknown_area_returns_null_area_label_and_empty_series(
+    client, db_session, seeded_tenants
+):
+    await _seed(db_session)
+    response = await client.get(
+        "/v1/rent-statistics",
+        params={"jurisdiction": "VIC", "area": "Nowhere", "dwelling_type": "unit"},
+        headers=KEY,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["area_label"] is None and body["series"] == []
+
+
 async def test_periods_above_cap_is_422(client, seeded_tenants):
     response = await client.get(
         "/v1/rent-statistics",

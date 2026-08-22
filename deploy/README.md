@@ -142,6 +142,19 @@ The daily monitor does the same through
   found. Any UI built on this data must surface the CC BY 4.0
   attribution.
 
+VIC publishes medians under grouped suburb labels (e.g.
+`Albert Park-Middle Park-West St Kilda`), so a consumer-supplied single
+suburb (`area` / `property.area_key`) is resolved against the published
+`area_code` values for VIC: it matches the whole label or any one of its
+`-`-separated parts, case- and whitespace-insensitive
+(`app/rent_stats/areas.py`). `GET /v1/rent-statistics` returns the
+resolved label as `area_label` (null when nothing matches) alongside the
+requested key, which keeps echoing what was asked for; on
+`POST /v1/rent-suggestions` the same resolution feeds `market_cell()`, so
+a match surfaces as `market.area_label` and no match falls through to the
+existing `no_data` gap. NSW postcodes are already exact and skip this
+step.
+
 Dwelling-type/bedrooms coverage differs by jurisdiction. NSW serves
 every `(dwelling_type, bedrooms)` combination present in the lodgements,
 plus the `(dwelling_type, NULL)` rollup per type and the `('all', NULL)`

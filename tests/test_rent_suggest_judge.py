@@ -35,6 +35,7 @@ CELL = MarketCell(
     sample_size=170,
     fallback=None,
     series=[],
+    area_label="2000",
 )
 ANCHOR = Anchor(Decimal(650), Decimal(698), Decimal(748), "within", CELL)
 LAW = LawCard(

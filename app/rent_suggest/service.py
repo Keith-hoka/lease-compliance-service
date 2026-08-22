@@ -57,6 +57,7 @@ def _market(anchored: Anchor, jurisdiction: str) -> SuggestionMarket | None:
         p75=cell.p75,
         sample_size=cell.sample_size,
         fallback=cell.fallback,
+        area_label=cell.area_label,
         source=_SOURCES[jurisdiction],
     )
 

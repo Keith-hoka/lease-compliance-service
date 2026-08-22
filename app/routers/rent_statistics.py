@@ -11,6 +11,7 @@ from app.core.db import get_session
 from app.core.ratelimit import enforce_rate_limit
 from app.core.usage import record_usage
 from app.models import RentStatistic
+from app.rent_stats.areas import resolve_area
 from app.rent_stats.loader import NSW_SOURCE_NAME, VIC_SOURCE_NAME
 from app.schemas.rent_statistics import RentStatisticsResponse, RentStatPoint, RentStatSource
 
@@ -37,26 +38,30 @@ async def get_rent_statistics(
     bedrooms: int | None = None,
     periods: Annotated[int, Query(ge=1, le=40)] = 8,
 ) -> RentStatisticsResponse:
-    stmt = (
-        select(RentStatistic)
-        .where(
-            RentStatistic.jurisdiction == jurisdiction,
-            RentStatistic.area_code == area,
-            RentStatistic.dwelling_type == dwelling_type,
-            RentStatistic.bedrooms.is_(None)
-            if bedrooms is None
-            else RentStatistic.bedrooms == bedrooms,
+    area_label = await resolve_area(session, jurisdiction, area)
+    rows = []
+    if area_label is not None:
+        stmt = (
+            select(RentStatistic)
+            .where(
+                RentStatistic.jurisdiction == jurisdiction,
+                RentStatistic.area_code == area_label,
+                RentStatistic.dwelling_type == dwelling_type,
+                RentStatistic.bedrooms.is_(None)
+                if bedrooms is None
+                else RentStatistic.bedrooms == bedrooms,
+            )
+            .order_by(RentStatistic.period.desc())
+            .limit(periods)
         )
-        .order_by(RentStatistic.period.desc())
-        .limit(periods)
-    )
-    rows = (await session.execute(stmt)).scalars().all()
+        rows = (await session.execute(stmt)).scalars().all()
     await record_usage(session, tenant.tenant_id, "rent_statistics")
     await session.commit()
     name, url, licence = _SOURCES[jurisdiction]
     return RentStatisticsResponse(
         jurisdiction=jurisdiction,
         area=area,
+        area_label=area_label,
         dwelling_type=dwelling_type,
         bedrooms=bedrooms,
         series=[

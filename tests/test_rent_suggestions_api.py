@@ -38,6 +38,38 @@ async def _seed_market(session):
     await session.commit()
 
 
+VIC_BODY = {
+    "jurisdiction": "VIC",
+    "as_at": "2026-08-17",
+    "property": {"area_key": "Albert Park", "dwelling_type": "unit", "bedrooms": 2},
+    "lease": {
+        "rent_amount": "600",
+        "rent_frequency": "weekly",
+        "start_date": "2024-10-01",
+        "end_date": "2026-09-30",
+    },
+    "renewal_start": "2026-10-01",
+}
+
+
+async def _seed_vic_grouped_market(session):
+    session.add(
+        RentStatistic(
+            jurisdiction="VIC",
+            period="2025-Q3",
+            area_code="Albert Park-Middle Park-West St Kilda",
+            dwelling_type="unit",
+            bedrooms=2,
+            median=Decimal(643),
+            p25=None,
+            p75=None,
+            sample_size=120,
+            source_url="u",
+        )
+    )
+    await session.commit()
+
+
 def _fake_judge(monkeypatch, weekly="720", reasoning="Median 760 supports 720."):
     async def fake(doc, instruction, output_model):
         return output_model.model_validate({"suggested_weekly": weekly, "reasoning": reasoning})
@@ -73,6 +105,18 @@ async def test_full_response_shape(client, db_session, seeded_tenants, monkeypat
         and body["disclaimer"] == "General information, not legal advice."
     )
     assert body["engine_version"]
+
+
+async def test_vic_grouped_label_resolves_and_market_carries_area_label(
+    client, db_session, seeded_tenants, monkeypatch
+):
+    await _seed_vic_grouped_market(db_session)
+    _fake_judge(monkeypatch, weekly="620", reasoning="Market median 643.")
+    response = await client.post("/v1/rent-suggestions", json=VIC_BODY, headers=KEY)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["market"] is not None
+    assert body["market"]["area_label"] == "Albert Park-Middle Park-West St Kilda"
 
 
 async def test_build_suggestion_requests_failover_on_the_first_infra_failure(

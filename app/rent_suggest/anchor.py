@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import RentStatistic
+from app.rent_stats.areas import resolve_area
 
 CAP_RATIO = Decimal("1.15")
 VIC_BAND = Decimal("0.08")
@@ -23,6 +24,7 @@ class MarketCell:
     sample_size: int
     fallback: str | None
     series: list[RentStatistic]
+    area_label: str
 
 
 @dataclass(frozen=True)
@@ -38,12 +40,12 @@ def dollars(value: Decimal) -> Decimal:
     return value.quantize(Decimal(1), rounding=ROUND_HALF_UP)
 
 
-async def _series(session, jurisdiction, area_key, dwelling_type, bedrooms):
+async def _series(session, jurisdiction, area_label, dwelling_type, bedrooms):
     stmt = (
         select(RentStatistic)
         .where(
             RentStatistic.jurisdiction == jurisdiction,
-            RentStatistic.area_code == area_key,
+            RentStatistic.area_code == area_label,
             RentStatistic.dwelling_type == dwelling_type,
             RentStatistic.bedrooms.is_(None)
             if bedrooms is None
@@ -70,11 +72,14 @@ async def market_cell(
     dwelling_type: str,
     bedrooms: int | None,
 ) -> MarketCell | None:
+    area_label = await resolve_area(session, jurisdiction, area_key)
+    if area_label is None:
+        return None
     thin: MarketCell | None = None
     for dtype, beds, fallback in _candidates(jurisdiction, dwelling_type, bedrooms):
         if (dtype, beds) == (dwelling_type, bedrooms) and fallback is not None:
             continue
-        rows = await _series(session, jurisdiction, area_key, dtype, beds)
+        rows = await _series(session, jurisdiction, area_label, dtype, beds)
         if not rows:
             continue
         newest = rows[0]
@@ -86,6 +91,7 @@ async def market_cell(
             sample_size=newest.sample_size,
             fallback=fallback,
             series=rows,
+            area_label=area_label,
         )
         if newest.sample_size >= THIN_SAMPLE:
             return cell

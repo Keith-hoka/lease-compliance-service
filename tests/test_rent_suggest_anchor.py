@@ -13,6 +13,7 @@ def _cell(**kw) -> MarketCell:
         sample_size=170,
         fallback=None,
         series=[],
+        area_label="2000",
     )
     base.update(kw)
     return MarketCell(**base)
@@ -114,6 +115,29 @@ async def test_market_cell_prefers_exact_then_falls_back_when_thin(db_session):
     exact = await market_cell(db_session, "NSW", "2000", "unit", None)
     assert exact.fallback is None and exact.period == "2026-07"
     assert await market_cell(db_session, "NSW", "9999", "unit", 2) is None
+
+
+async def test_market_cell_resolves_vic_grouped_label(db_session):
+    db_session.add(
+        RentStatistic(
+            jurisdiction="VIC",
+            period="2025-Q3",
+            area_code="Albert Park-Middle Park-West St Kilda",
+            dwelling_type="unit",
+            bedrooms=2,
+            median=Decimal(643),
+            p25=None,
+            p75=None,
+            sample_size=120,
+            source_url="u",
+        )
+    )
+    await db_session.commit()
+    cell = await market_cell(db_session, "VIC", "albert park", "unit", 2)
+    assert cell.area_label == "Albert Park-Middle Park-West St Kilda"
+    full = await market_cell(db_session, "VIC", "Albert Park-Middle Park-West St Kilda", "unit", 2)
+    assert full.area_label == "Albert Park-Middle Park-West St Kilda"
+    assert await market_cell(db_session, "VIC", "Nowhere", "unit", 2) is None
 
 
 async def test_vic_falls_back_only_to_all(db_session):

@@ -23,6 +23,7 @@ class RentStatSource(BaseModel):
 class RentStatisticsResponse(BaseModel):
     jurisdiction: Literal["NSW", "VIC"]
     area: str
+    area_label: str | None
     dwelling_type: str
     bedrooms: int | None
     series: list[RentStatPoint]

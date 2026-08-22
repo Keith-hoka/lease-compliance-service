@@ -40,6 +40,7 @@ class SuggestionMarket(BaseModel):
     p75: Decimal | None
     sample_size: int
     fallback: str | None
+    area_label: str
     source: SuggestionSource
 
 
